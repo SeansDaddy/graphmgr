@@ -1,0 +1,6 @@
+{
+  "name": "DiagnosGraph Studio",
+  "description": "储能运维领域专家故障知识图谱建模工作台，提供设备BOM树管理、故障与症状定义、传播链画布、SOP处置方案、告警映射、单元测试场及YAML资产导出。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
