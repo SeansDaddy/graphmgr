@@ -18,6 +18,9 @@ import {
   AlertCircle,
   RotateCcw,
   Gauge,
+  SlidersHorizontal,
+  Sliders,
+  History,
 } from 'lucide-react';
 import { generateFullSystemYamlBundle, downloadFile } from '../utils/yamlUtils';
 
@@ -35,6 +38,8 @@ export const Header: React.FC<{
     sops,
     alarms,
     indicators,
+    parameters,
+    soeLogs,
     showToast,
     resetToFactoryData,
   } = useApp();
@@ -46,6 +51,9 @@ export const Header: React.FC<{
     { id: 'workbench', label: '工作台', icon: Activity },
     { id: 'devices', label: '设备 BOM', icon: Layers, badge: devices.length },
     { id: 'indicators', label: '指标库', icon: Gauge, badge: indicators.length },
+    { id: 'parameters', label: '配置参数库', icon: SlidersHorizontal, badge: parameters.length },
+    { id: 'static-configs', label: '静态配置', icon: Sliders },
+    { id: 'event-logs', label: '事件序列', icon: History, badge: soeLogs.length },
     { id: 'faults', label: '故障建模', icon: AlertOctagon, badge: faults.length },
     { id: 'procedures', label: '处置 SOP', icon: FileText, badge: sops.length },
     { id: 'alarms', label: '告警接入', icon: BellRing, badge: alarms.length },
@@ -108,7 +116,8 @@ export const Header: React.FC<{
               const isActive =
                 activeTab === item.id ||
                 (item.id === 'faults' && activeTab === 'fault-editor') ||
-                (item.id === 'procedures' && activeTab === 'sop-editor');
+                (item.id === 'procedures' && activeTab === 'sop-editor') ||
+                (item.id === 'parameters' && activeTab === 'parameter-editor');
 
               return (
                 <button
@@ -207,7 +216,8 @@ export const Header: React.FC<{
             const isActive =
               activeTab === item.id ||
               (item.id === 'faults' && activeTab === 'fault-editor') ||
-              (item.id === 'procedures' && activeTab === 'sop-editor');
+              (item.id === 'procedures' && activeTab === 'sop-editor') ||
+              (item.id === 'parameters' && activeTab === 'parameter-editor');
 
             return (
               <button

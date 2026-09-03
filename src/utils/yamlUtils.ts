@@ -1,6 +1,37 @@
 import * as yaml from 'js-yaml';
 import { DeviceNode, FaultPattern, RecoveryProcedure, AlarmType, MetricIndicator } from '../types';
 
+const formatSymptomForYaml = (s: any) => ({
+  type: s.type || 'indicator',
+  device_type: s.device_type || undefined,
+  device_name: s.device_name || undefined,
+  indicator_id: s.indicator_id || undefined,
+  metric_code: s.metric_code || undefined,
+  metric_name: s.metric_name,
+  direction: s.direction || undefined,
+  time_window: s.time_window || undefined,
+  normal_range: s.normal_range || undefined,
+  unit: s.unit || undefined,
+  alarm_id: s.alarm_id || undefined,
+  alarm_code: s.alarm_code || undefined,
+  alarm_name: s.alarm_name || undefined,
+  alarm_level: s.alarm_level || undefined,
+  trigger_condition: s.trigger_condition || undefined,
+  parameter_id: s.parameter_id || undefined,
+  parameter_code: s.parameter_code || undefined,
+  parameter_name: s.parameter_name || undefined,
+  baseline_value: s.baseline_value !== undefined ? s.baseline_value : undefined,
+  abnormal_value: s.abnormal_value !== undefined ? s.abnormal_value : undefined,
+  condition_operator: s.condition_operator || undefined,
+  sequence_id: s.sequence_id || undefined,
+  sequence_name: s.sequence_name || undefined,
+  log_source: s.log_source || undefined,
+  keywords: s.keywords || undefined,
+  stat_type: s.stat_type || undefined,
+  stat_condition: s.stat_condition || undefined,
+  notes: s.notes || undefined,
+});
+
 /**
  * Generate YAML for a single fault pattern conforming to fault_patterns.yaml schema
  */
@@ -11,17 +42,7 @@ export function generateFaultYaml(fault: FaultPattern): string {
     severity: fault.severity,
     root_cause: fault.root_cause,
     affected_devices: fault.affected_devices || [],
-    symptoms: (fault.symptoms || []).map((s) => ({
-      device_type: s.device_type || undefined,
-      indicator_id: s.indicator_id || undefined,
-      metric_code: s.metric_code || undefined,
-      metric_name: s.metric_name,
-      direction: s.direction,
-      time_window: s.time_window,
-      normal_range: s.normal_range,
-      unit: s.unit || '',
-      notes: s.notes || undefined,
-    })),
+    symptoms: (fault.symptoms || []).map(formatSymptomForYaml),
     propagation_chain: (fault.propagation_chain || []).map((p) => ({
       from: p.from,
       to: p.to,
@@ -60,17 +81,7 @@ export function generateAllFaultsYaml(faults: FaultPattern[]): string {
     severity: fault.severity,
     root_cause: fault.root_cause,
     affected_devices: fault.affected_devices || [],
-    symptoms: (fault.symptoms || []).map((s) => ({
-      device_type: s.device_type || undefined,
-      indicator_id: s.indicator_id || undefined,
-      metric_code: s.metric_code || undefined,
-      metric_name: s.metric_name,
-      direction: s.direction,
-      time_window: s.time_window,
-      normal_range: s.normal_range,
-      unit: s.unit || '',
-      notes: s.notes || undefined,
-    })),
+    symptoms: (fault.symptoms || []).map(formatSymptomForYaml),
     propagation_chain: (fault.propagation_chain || []).map((p) => ({
       from: p.from,
       to: p.to,

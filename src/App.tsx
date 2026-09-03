@@ -10,6 +10,10 @@ import { ToastContainer } from './components/ToastContainer';
 import { Workbench } from './components/Workbench';
 import { DeviceBOMTree } from './components/DeviceBOMTree';
 import { IndicatorLibrary } from './components/IndicatorLibrary';
+import { ParameterLibrary } from './components/ParameterLibrary';
+import { ParameterEditor } from './components/ParameterEditor';
+import { StaticConfigManager } from './components/StaticConfigManager';
+import { EventLogSequence } from './components/EventLogSequence';
 import { FaultList } from './components/FaultList';
 import { FaultEditor } from './components/FaultEditor';
 import { SopList } from './components/SopList';
@@ -43,6 +47,14 @@ const AppContent: React.FC = () => {
         {activeTab === 'devices' && <DeviceBOMTree />}
 
         {activeTab === 'indicators' && <IndicatorLibrary />}
+
+        {activeTab === 'parameters' && <ParameterLibrary />}
+
+        {activeTab === 'parameter-editor' && <ParameterEditor />}
+
+        {activeTab === 'static-configs' && <StaticConfigManager />}
+
+        {activeTab === 'event-logs' && <EventLogSequence />}
 
         {activeTab === 'faults' && <FaultList />}
 

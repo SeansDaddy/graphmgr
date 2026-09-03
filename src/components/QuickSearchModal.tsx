@@ -9,6 +9,7 @@ import {
   ArrowRight,
   X,
   Gauge,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export const QuickSearchModal: React.FC<{
@@ -21,10 +22,12 @@ export const QuickSearchModal: React.FC<{
     sops,
     alarms,
     indicators,
+    parameters,
     openFaultEditor,
     openSopEditor,
     openDeviceInBom,
     openIndicatorEditor,
+    openParameterEditor,
     setActiveTab,
   } = useApp();
   const [query, setQuery] = useState('');
@@ -58,6 +61,25 @@ export const QuickSearchModal: React.FC<{
         subtitle: `故障模式 • 等级: ${f.severity}`,
         action: () => {
           openFaultEditor(f.id);
+          onClose();
+        },
+      }));
+
+    const matchedParameters = (parameters || [])
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.code.toLowerCase().includes(q) ||
+          p.domain.toLowerCase().includes(q)
+      )
+      .slice(0, 4)
+      .map((p) => ({
+        type: 'parameter' as const,
+        id: p.code,
+        title: p.name,
+        subtitle: `配置参数库 • [${p.domain}] ${p.code} (${p.param_type})`,
+        action: () => {
+          openParameterEditor(p.id);
           onClose();
         },
       }));
@@ -123,8 +145,30 @@ export const QuickSearchModal: React.FC<{
         },
       }));
 
-    return [...matchedFaults, ...matchedIndicators, ...matchedDevices, ...matchedSops, ...matchedAlarms];
-  }, [query, faults, devices, sops, alarms, indicators, openFaultEditor, openSopEditor, openDeviceInBom, openIndicatorEditor, setActiveTab, onClose]);
+    return [
+      ...matchedFaults,
+      ...matchedParameters,
+      ...matchedIndicators,
+      ...matchedDevices,
+      ...matchedSops,
+      ...matchedAlarms,
+    ];
+  }, [
+    query,
+    faults,
+    parameters,
+    devices,
+    sops,
+    alarms,
+    indicators,
+    openFaultEditor,
+    openParameterEditor,
+    openSopEditor,
+    openDeviceInBom,
+    openIndicatorEditor,
+    setActiveTab,
+    onClose,
+  ]);
 
   if (!isOpen) return null;
 
@@ -156,6 +200,7 @@ export const QuickSearchModal: React.FC<{
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-lg bg-slate-100 text-slate-600 group-hover:text-slate-900 transition">
                   {item.type === 'fault' && <AlertOctagon className="w-4 h-4 text-amber-600" />}
+                  {item.type === 'parameter' && <SlidersHorizontal className="w-4 h-4 text-indigo-600" />}
                   {item.type === 'indicator' && <Gauge className="w-4 h-4 text-sky-600" />}
                   {item.type === 'device' && <Layers className="w-4 h-4 text-slate-600" />}
                   {item.type === 'sop' && <FileText className="w-4 h-4 text-emerald-600" />}

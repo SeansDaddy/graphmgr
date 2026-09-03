@@ -9,6 +9,10 @@ import {
   ActiveTab,
   EntityStatus,
   FaultViewMode,
+  ConfigParameter,
+  DeviceConfigurationProfile,
+  EventSequencePattern,
+  SoeLogEvent,
 } from '../types';
 import {
   INITIAL_DEVICES,
@@ -17,6 +21,10 @@ import {
   INITIAL_ALARMS,
   INITIAL_INDICATORS,
   INITIAL_VERSION_SNAPSHOTS,
+  INITIAL_CONFIG_PARAMETERS,
+  INITIAL_STATIC_CONFIG_PROFILES,
+  INITIAL_EVENT_PATTERNS,
+  SAMPLE_SOE_LOGS,
 } from '../data/initialData';
 import { parseUploadedYaml } from '../utils/yamlUtils';
 import confetti from 'canvas-confetti';
@@ -36,6 +44,10 @@ interface AppContextType {
   sops: RecoveryProcedure[];
   alarms: AlarmType[];
   indicators: MetricIndicator[];
+  parameters: ConfigParameter[];
+  staticConfigs: DeviceConfigurationProfile[];
+  soeLogs: SoeLogEvent[];
+  eventPatterns: EventSequencePattern[];
   versionSnapshots: VersionSnapshot[];
   selectedFaultId: string | null;
   setSelectedFaultId: (id: string | null) => void;
@@ -45,6 +57,12 @@ interface AppContextType {
   setSelectedDeviceId: (id: string | null) => void;
   selectedIndicatorId: string | null;
   setSelectedIndicatorId: (id: string | null) => void;
+  selectedParameterId: string | null;
+  setSelectedParameterId: (id: string | null) => void;
+  selectedProfileId: string | null;
+  setSelectedProfileId: (id: string | null) => void;
+  selectedEventPatternId: string | null;
+  setSelectedEventPatternId: (id: string | null) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   toasts: Toast[];
@@ -58,6 +76,9 @@ interface AppContextType {
   selectedSop: RecoveryProcedure | null;
   selectedDevice: DeviceNode | null;
   selectedIndicator: MetricIndicator | null;
+  selectedParameter: ConfigParameter | null;
+  selectedProfile: DeviceConfigurationProfile | null;
+  selectedEventPattern: EventSequencePattern | null;
 
   // Actions - Devices
   addDevice: (device: Partial<DeviceNode>) => string;
@@ -89,6 +110,27 @@ interface AppContextType {
   deleteIndicator: (id: string) => void;
   openIndicatorEditor: (indicatorId: string) => void;
 
+  // Actions - 4.9 Config Parameters
+  addParameter: (param: Partial<ConfigParameter>) => string;
+  updateParameter: (id: string, updates: Partial<ConfigParameter>) => void;
+  deleteParameter: (id: string) => void;
+  publishParameter: (id: string) => void;
+  openParameterEditor: (paramIdOrCode: string) => void;
+
+  // Actions - Static Config Profiles
+  updateDeviceConfig: (profileId: string, paramCode: string, value: string | number | boolean) => void;
+  resetProfileToBaseline: (profileId: string) => void;
+  addConfigProfile: (profile: DeviceConfigurationProfile) => void;
+
+  // Actions - SOE Logs & Event Sequences
+  addSoeLog: (event: Partial<SoeLogEvent>) => void;
+  clearSoeLogs: () => void;
+  resetSoeLogs: () => void;
+  addEventPattern: (pattern: Partial<EventSequencePattern>) => string;
+  updateEventPattern: (id: string, updates: Partial<EventSequencePattern>) => void;
+  deleteEventPattern: (id: string) => void;
+  syncEventPatternToFault: (patternId: string) => void;
+
   // Bulk / Version / Import
   publishAllDrafts: (releaseNote?: string) => void;
   rollbackVersion: (snapshotId: string) => void;
@@ -110,6 +152,9 @@ const STORAGE_KEYS = {
   SOPS: 'diagnosgraph_sops_v1',
   ALARMS: 'diagnosgraph_alarms_v1',
   INDICATORS: 'diagnosgraph_indicators_v1',
+  PARAMETERS: 'diagnosgraph_parameters_v1',
+  STATIC_CONFIGS: 'diagnosgraph_static_configs_v1',
+  EVENT_PATTERNS: 'diagnosgraph_event_patterns_v1',
   VERSIONS: 'diagnosgraph_versions_v1',
 };
 
@@ -139,6 +184,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedSopId, setSelectedSopId] = useState<string | null>('RP-F001');
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>('DEV-CABIN-40FT');
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>('coolant_flow');
+  const [selectedParameterId, setSelectedParameterId] = useState<string | null>('pump_control_mode');
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>('CFG-DEV-COOL-PUMP');
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -186,6 +233,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_INDICATORS);
     } catch {
       return dedupeById(INITIAL_INDICATORS);
+    }
+  });
+
+  const [parameters, setParameters] = useState<ConfigParameter[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PARAMETERS);
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_CONFIG_PARAMETERS);
+    } catch {
+      return dedupeById(INITIAL_CONFIG_PARAMETERS);
+    }
+  });
+
+  const [staticConfigs, setStaticConfigs] = useState<DeviceConfigurationProfile[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.STATIC_CONFIGS);
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_STATIC_CONFIG_PROFILES);
+    } catch {
+      return dedupeById(INITIAL_STATIC_CONFIG_PROFILES);
+    }
+  });
+
+  const [soeLogs, setSoeLogs] = useState<SoeLogEvent[]>(SAMPLE_SOE_LOGS);
+  const [selectedEventPatternId, setSelectedEventPatternId] = useState<string | null>(null);
+  const [eventPatterns, setEventPatterns] = useState<EventSequencePattern[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EVENT_PATTERNS);
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_EVENT_PATTERNS);
+    } catch {
+      return dedupeById(INITIAL_EVENT_PATTERNS);
     }
   });
 
@@ -241,11 +317,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
+      localStorage.setItem(STORAGE_KEYS.PARAMETERS, JSON.stringify(parameters));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [parameters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.STATIC_CONFIGS, JSON.stringify(staticConfigs));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [staticConfigs]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(STORAGE_KEYS.VERSIONS, JSON.stringify(versionSnapshots));
     } catch (e) {
       console.error(e);
     }
   }, [versionSnapshots]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.EVENT_PATTERNS, JSON.stringify(eventPatterns));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [eventPatterns]);
 
   // Toast helper
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
@@ -287,6 +387,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const selectedIndicator = useMemo(() => {
     return indicators.find((i) => i.id === selectedIndicatorId || i.code === selectedIndicatorId) || indicators[0] || null;
   }, [indicators, selectedIndicatorId]);
+
+  const selectedParameter = useMemo(() => {
+    if (!selectedParameterId) return parameters[0] || null;
+    return parameters.find((p) => p.id === selectedParameterId || p.code === selectedParameterId) || parameters[0] || null;
+  }, [parameters, selectedParameterId]);
+
+  const selectedProfile = useMemo(() => {
+    if (!selectedProfileId) return staticConfigs[0] || null;
+    return staticConfigs.find((p) => p.id === selectedProfileId) || staticConfigs[0] || null;
+  }, [staticConfigs, selectedProfileId]);
+
+  const selectedEventPattern = useMemo(() => {
+    if (!selectedEventPatternId) return eventPatterns[0] || null;
+    return eventPatterns.find((p) => p.id === selectedEventPatternId) || eventPatterns[0] || null;
+  }, [eventPatterns, selectedEventPatternId]);
 
   // Actions - Devices
   const addDevice = (partial: Partial<DeviceNode>): string => {
@@ -578,6 +693,259 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('indicators');
   };
 
+  // Actions - 4.9 Config Parameters
+  const addParameter = (partial: Partial<ConfigParameter>): string => {
+    const rawCode = partial.code?.trim().toLowerCase().replace(/\s+/g, '_') || `param_${Date.now().toString(36)}`;
+    let newCode = rawCode;
+    let counter = 1;
+    while (parameters.some((p) => p.code === newCode || p.id === newCode)) {
+      newCode = `${rawCode}_${counter++}`;
+    }
+
+    const newParam: ConfigParameter = {
+      id: newCode,
+      code: newCode,
+      name: partial.name || '新配置参数',
+      domain: partial.domain || '储能',
+      applicable_device_types: partial.applicable_device_types || ['pump'],
+      description: partial.description || '',
+      param_type: partial.param_type || 'enum',
+      enum_values: partial.enum_values || [
+        { key: 'auto', label: '自动模式', description: '系统默认自适应调节' },
+        { key: 'manual', label: '手动模式', description: '就地手动设定' },
+      ],
+      range_min: partial.range_min,
+      range_max: partial.range_max,
+      unit: partial.unit || '',
+      default_value: partial.default_value !== undefined ? partial.default_value : 'auto',
+      associated_fault_ids: partial.associated_fault_ids || [],
+      status: 'draft',
+      updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+      author: partial.author || '系统专家',
+    };
+
+    setParameters((prev) => [newParam, ...prev]);
+    setSelectedParameterId(newCode);
+    showToast(`已成功创建配置参数: ${newParam.name} (${newParam.code})`, 'success');
+    return newCode;
+  };
+
+  const updateParameter = (id: string, updates: Partial<ConfigParameter>) => {
+    setParameters((prev) =>
+      prev.map((p) =>
+        p.id === id || p.code === id
+          ? {
+              ...p,
+              ...updates,
+              updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+            }
+          : p
+      )
+    );
+    showToast('配置参数已保存', 'success');
+  };
+
+  const deleteParameter = (id: string) => {
+    setParameters((prev) => prev.filter((p) => p.id !== id && p.code !== id));
+    showToast('已删除配置参数', 'info');
+  };
+
+  const publishParameter = (id: string) => {
+    setParameters((prev) =>
+      prev.map((p) =>
+        p.id === id || p.code === id
+          ? {
+              ...p,
+              status: 'published' as EntityStatus,
+              updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+            }
+          : p
+      )
+    );
+    try {
+      confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+    } catch {}
+    showToast('配置参数已发布生效', 'success');
+  };
+
+  const openParameterEditor = (paramIdOrCode: string) => {
+    setSelectedParameterId(paramIdOrCode);
+    setActiveTab('parameter-editor');
+  };
+
+  // Actions - Static Config Profiles
+  const updateDeviceConfig = (profileId: string, paramCode: string, value: string | number | boolean) => {
+    setStaticConfigs((prev) =>
+      prev.map((prof) => {
+        if (prof.id !== profileId) return prof;
+        const newConfigs = { ...prof.configs, [paramCode]: value };
+        // Check mismatches against baseline
+        let mismatches = 0;
+        Object.entries(newConfigs).forEach(([k, v]) => {
+          const baselineParam = parameters.find((p) => p.code === k || p.id === k);
+          if (baselineParam && baselineParam.default_value !== undefined && baselineParam.default_value !== v) {
+            mismatches++;
+          }
+        });
+        const status = mismatches === 0 ? 'synced' : mismatches >= 2 ? 'critical_mismatch' : 'drift_detected';
+        return {
+          ...prof,
+          configs: newConfigs,
+          baseline_status: status,
+          mismatches_count: mismatches,
+          updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+        };
+      })
+    );
+    showToast(`已更新设备静态参数: ${paramCode} = ${value}`, 'success');
+  };
+
+  const resetProfileToBaseline = (profileId: string) => {
+    setStaticConfigs((prev) =>
+      prev.map((prof) => {
+        if (prof.id !== profileId) return prof;
+        const resetConfigs = { ...prof.configs };
+        Object.keys(resetConfigs).forEach((k) => {
+          const baselineParam = parameters.find((p) => p.code === k || p.id === k);
+          if (baselineParam && baselineParam.default_value !== undefined) {
+            resetConfigs[k] = baselineParam.default_value;
+          }
+        });
+        return {
+          ...prof,
+          configs: resetConfigs,
+          baseline_status: 'synced',
+          mismatches_count: 0,
+          updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+        };
+      })
+    );
+    showToast('已将设备配置一键重置对齐标准安全基线', 'success');
+  };
+
+  const addConfigProfile = (profile: DeviceConfigurationProfile) => {
+    setStaticConfigs((prev) => [profile, ...prev]);
+    setSelectedProfileId(profile.id);
+    showToast(`已添加设备配置档案: ${profile.device_name}`, 'success');
+  };
+
+  // Actions - SOE Logs
+  const addSoeLog = (event: Partial<SoeLogEvent>) => {
+    const newEvent: SoeLogEvent = {
+      id: `EVT-${Date.now()}`,
+      timestamp: event.timestamp || new Date().toLocaleString('zh-CN', { hour12: false }),
+      relative_ms: event.relative_ms !== undefined ? event.relative_ms : 0,
+      device_id: event.device_id || 'DEV-CABIN-40FT',
+      device_name: event.device_name || '储能集装箱',
+      device_type: event.device_type || 'cabin',
+      event_code: event.event_code || 'EVENT_TRIGGERED',
+      event_name: event.event_name || '未命名事件',
+      severity: event.severity || 'high',
+      source: event.source || 'BMS',
+      details: event.details || '',
+    };
+    setSoeLogs((prev) => [newEvent, ...prev]);
+    showToast(`收到新 SOE 事件: ${newEvent.event_name}`, 'info');
+  };
+
+  const clearSoeLogs = () => {
+    setSoeLogs([]);
+    showToast('已清空当前 SOE 事件列表', 'info');
+  };
+
+  const resetSoeLogs = () => {
+    setSoeLogs(SAMPLE_SOE_LOGS);
+    showToast('已重载标准事故 SOE 事件样本序列', 'success');
+  };
+
+  // Actions - Event Sequence Rules for Fault Symptom Entry
+  const addEventPattern = (partial: Partial<EventSequencePattern>): string => {
+    const nextIdx = eventPatterns.length + 1;
+    const newId = partial.id || `SEQ-${partial.fault_id || 'F001'}-${String(nextIdx).padStart(2, '0')}`;
+    const newPattern: EventSequencePattern = {
+      id: newId,
+      fault_id: partial.fault_id || 'F001',
+      fault_name: partial.fault_name || '冷却泵故障',
+      name: partial.name || `新日志事件序列规则 ${nextIdx}`,
+      device_type: partial.device_type || 'cooling_pump',
+      log_source: partial.log_source || 'tms_system.log',
+      time_window: partial.time_window || '[-5min, 0min]',
+      keywords: partial.keywords || 'PUMP_STATUS_ERR',
+      match_mode: partial.match_mode || 'regex',
+      stat_type: partial.stat_type || 'count',
+      stat_operator: partial.stat_operator || '>=',
+      stat_threshold: partial.stat_threshold !== undefined ? partial.stat_threshold : 2,
+      stat_unit: partial.stat_unit || '次',
+      stat_condition: partial.stat_condition || `${partial.stat_type || 'count'} >= 2 次`,
+      description: partial.description || '用于故障症状特征录入的日志查询规则',
+      steps: partial.steps || [],
+      status: 'draft',
+      updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+      author: partial.author || '现场诊断专家',
+    };
+    setEventPatterns((prev) => [newPattern, ...prev]);
+    setSelectedEventPatternId(newId);
+    showToast(`已创建事件序列规则: ${newPattern.name}`, 'success');
+    return newId;
+  };
+
+  const updateEventPattern = (id: string, updates: Partial<EventSequencePattern>) => {
+    setEventPatterns((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...updates,
+              updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
+            }
+          : p
+      )
+    );
+    showToast('事件序列规则已保存', 'success');
+  };
+
+  const deleteEventPattern = (id: string) => {
+    setEventPatterns((prev) => prev.filter((p) => p.id !== id));
+    showToast('已删除事件序列规则', 'info');
+  };
+
+  const syncEventPatternToFault = (patternId: string) => {
+    const pattern = eventPatterns.find((p) => p.id === patternId);
+    if (!pattern) return;
+    const targetFault = faults.find((f) => f.id === pattern.fault_id);
+    if (!targetFault) {
+      showToast(`未找到关联的故障模式 [${pattern.fault_id}]`, 'warning');
+      return;
+    }
+    const newSymptom: Symptom = {
+      id: `SYM-SEQ-${pattern.id}`,
+      type: 'event_sequence',
+      device_type: pattern.device_type,
+      device_name: pattern.fault_name,
+      sequence_id: pattern.id,
+      sequence_name: pattern.name,
+      log_source: pattern.log_source,
+      time_window: pattern.time_window,
+      keywords: pattern.keywords,
+      stat_type: pattern.stat_type,
+      stat_condition: pattern.stat_condition || `${pattern.stat_type || 'count'} ${pattern.stat_operator || '>='} ${pattern.stat_threshold || 1} ${pattern.stat_unit || '次'}`,
+      metric_name: `[日志] ${pattern.name}`,
+      notes: `来自事件序列规则库: ${pattern.description || ''}`,
+    };
+
+    const existingIndex = (targetFault.symptoms || []).findIndex(
+      (s) => s.sequence_id === pattern.id || s.id === `SYM-SEQ-${pattern.id}`
+    );
+    const updatedSymptoms = [...(targetFault.symptoms || [])];
+    if (existingIndex >= 0) {
+      updatedSymptoms[existingIndex] = { ...updatedSymptoms[existingIndex], ...newSymptom };
+    } else {
+      updatedSymptoms.push(newSymptom);
+    }
+    updateFault(targetFault.id, { symptoms: updatedSymptoms });
+    showToast(`已成功将事件序列 [${pattern.id}] 关联同步至故障 [${targetFault.id} ${targetFault.name}] 的异常特征中`, 'success');
+  };
+
   // Version / Bulk Publish
   const publishAllDrafts = (releaseNote = '全站知识库结构化资产统一发布') => {
     const newVersionTag = `v1.0.${versionSnapshots.length + 5}-release`;
@@ -751,6 +1119,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(STORAGE_KEYS.SOPS);
       localStorage.removeItem(STORAGE_KEYS.ALARMS);
       localStorage.removeItem(STORAGE_KEYS.INDICATORS);
+      localStorage.removeItem(STORAGE_KEYS.PARAMETERS);
+      localStorage.removeItem(STORAGE_KEYS.STATIC_CONFIGS);
       localStorage.removeItem(STORAGE_KEYS.VERSIONS);
     } catch {}
     setDevices(dedupeById(INITIAL_DEVICES));
@@ -758,11 +1128,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSops(dedupeById(INITIAL_SOPS));
     setAlarms(dedupeById(INITIAL_ALARMS));
     setIndicators(dedupeById(INITIAL_INDICATORS));
+    setParameters(dedupeById(INITIAL_CONFIG_PARAMETERS));
+    setStaticConfigs(dedupeById(INITIAL_STATIC_CONFIG_PROFILES));
+    setSoeLogs(SAMPLE_SOE_LOGS);
+    setEventPatterns(INITIAL_EVENT_PATTERNS);
     setVersionSnapshots(dedupeById(INITIAL_VERSION_SNAPSHOTS));
     setSelectedFaultId('F001');
     setSelectedSopId('RP-F001');
     setSelectedDeviceId('DEV-CABIN-40FT');
     setSelectedIndicatorId('coolant_flow');
+    setSelectedParameterId('pump_control_mode');
+    setSelectedProfileId('CFG-DEV-COOL-PUMP');
     showToast('已重置回标准储能示例知识库', 'info');
   };
 
@@ -799,6 +1175,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sops,
         alarms,
         indicators,
+        parameters,
+        staticConfigs,
+        soeLogs,
+        eventPatterns,
         versionSnapshots,
         selectedFaultId,
         setSelectedFaultId,
@@ -808,6 +1188,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedDeviceId,
         selectedIndicatorId,
         setSelectedIndicatorId,
+        selectedParameterId,
+        setSelectedParameterId,
+        selectedProfileId,
+        setSelectedProfileId,
+        selectedEventPatternId,
+        setSelectedEventPatternId,
         searchQuery,
         setSearchQuery,
         toasts,
@@ -819,6 +1205,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedSop,
         selectedDevice,
         selectedIndicator,
+        selectedParameter,
+        selectedProfile,
+        selectedEventPattern,
         addDevice,
         updateDevice,
         deleteDevice,
@@ -839,6 +1228,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateIndicator,
         deleteIndicator,
         openIndicatorEditor,
+        addParameter,
+        updateParameter,
+        deleteParameter,
+        publishParameter,
+        openParameterEditor,
+        updateDeviceConfig,
+        resetProfileToBaseline,
+        addConfigProfile,
+        addSoeLog,
+        clearSoeLogs,
+        resetSoeLogs,
+        addEventPattern,
+        updateEventPattern,
+        deleteEventPattern,
+        syncEventPatternToFault,
         publishAllDrafts,
         rollbackVersion,
         importYamlContent,

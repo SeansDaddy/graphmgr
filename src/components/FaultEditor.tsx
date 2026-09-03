@@ -3,9 +3,12 @@ import { useApp } from '../context/AppContext';
 import {
   FaultPattern,
   FaultSymptom,
+  Symptom,
+  SymptomType,
   SeverityLevel,
   DeviceTypeCategory,
   DEVICE_TYPE_OPTIONS,
+  EventSequencePattern,
 } from '../types';
 import { PropagationCanvas } from './PropagationCanvas';
 import {
@@ -28,6 +31,15 @@ import {
   X,
   Gauge,
   Tag,
+  BellRing,
+  SlidersHorizontal,
+  History,
+  Sliders,
+  Filter,
+  CheckCircle2,
+  Search,
+  ArrowRight,
+  ShieldAlert,
 } from 'lucide-react';
 import { generateSingleFaultYaml } from '../utils/yamlUtils';
 
@@ -76,6 +88,9 @@ export const FaultEditor: React.FC = () => {
     devices,
     sops,
     indicators,
+    alarms,
+    parameters,
+    eventPatterns,
     selectedFaultId,
     saveFaultDraft,
     publishFault,
@@ -83,6 +98,7 @@ export const FaultEditor: React.FC = () => {
     showToast,
     openSopEditor,
     openIndicatorEditor,
+    openParameterEditor,
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'basic' | 'symptoms' | 'propagation' | 'sop'>(
@@ -90,6 +106,7 @@ export const FaultEditor: React.FC = () => {
   );
   const [showYamlPreview, setShowYamlPreview] = useState(false);
   const [showDevicePicker, setShowDevicePicker] = useState(false);
+  const [symptomFilterType, setSymptomFilterType] = useState<SymptomType | 'all'>('all');
 
   // Get current active fault
   const currentFault = useMemo(() => {
@@ -128,26 +145,81 @@ export const FaultEditor: React.FC = () => {
     publishFault(formData.id);
   };
 
-  const handleAddSymptom = (preset?: Partial<FaultSymptom>) => {
+  const handleAddSymptom = (type: SymptomType = 'indicator', preset?: Partial<FaultSymptom>) => {
     const nextIdx = (formData.symptoms?.length || 0) + 1;
-    const defaultInd = indicators[0];
-    const inferred = inferDeviceTypeFromIndicator(
-      preset?.metric_name ? { name: preset.metric_name, code: preset.metric_code } : defaultInd
-    );
+    let newSymptom: FaultSymptom;
 
-    const newSymptom: FaultSymptom = {
-      id: `SYM-${Date.now()}-${nextIdx}`,
-      device_type: preset?.device_type || inferred.device_type,
-      device_name: preset?.device_name || inferred.device_name,
-      indicator_id: preset?.indicator_id || defaultInd?.id || 'coolant_flow',
-      metric_code: preset?.metric_code || defaultInd?.code || 'coolant_flow',
-      metric_name: preset?.metric_name || defaultInd?.name || `监测参数指标 ${nextIdx}`,
-      direction: preset?.direction || 'up',
-      time_window: preset?.time_window || '0-5min',
-      normal_range: preset?.normal_range || defaultInd?.normal_range || '20-40°C',
-      unit: preset?.unit || defaultInd?.unit || '',
-      notes: preset?.notes || '',
-    };
+    if (type === 'alarm') {
+      const defaultAlarm = alarms[0];
+      newSymptom = {
+        id: `SYM-ALM-${Date.now()}-${nextIdx}`,
+        type: 'alarm',
+        device_type: preset?.device_type || 'cabin',
+        device_name: preset?.device_name || '安全监控与告警单元',
+        metric_name: preset?.alarm_name || defaultAlarm?.name || `系统告警特征 ${nextIdx}`,
+        alarm_id: preset?.alarm_id || defaultAlarm?.id || 'ALM_01',
+        alarm_code: preset?.alarm_code || defaultAlarm?.code || 'ALM_PUMP_FLOW_LOW',
+        alarm_name: preset?.alarm_name || defaultAlarm?.name || '冷却泵低流量告警',
+        alarm_level: preset?.alarm_level || defaultAlarm?.level || 'high',
+        trigger_condition: preset?.trigger_condition || '连续低于 50 L/min 超过 3s',
+        time_window: preset?.time_window || '0-5min',
+        notes: preset?.notes || '',
+      };
+    } else if (type === 'parameter') {
+      const defaultParam = parameters[0];
+      newSymptom = {
+        id: `SYM-PAR-${Date.now()}-${nextIdx}`,
+        type: 'parameter',
+        device_type: preset?.device_type || 'cooling_pump',
+        device_name: preset?.device_name || '热管理/循环泵机组',
+        metric_name: preset?.parameter_name || defaultParam?.name || `配置参数偏离 ${nextIdx}`,
+        parameter_id: preset?.parameter_id || defaultParam?.id || 'pump_control_mode',
+        parameter_code: preset?.parameter_code || defaultParam?.code || 'pump_control_mode',
+        parameter_name: preset?.parameter_name || defaultParam?.name || '冷却泵控制模式',
+        baseline_value: preset?.baseline_value !== undefined ? preset.baseline_value : (defaultParam?.default_value ?? 'auto'),
+        abnormal_value: preset?.abnormal_value !== undefined ? preset.abnormal_value : 'manual',
+        condition_operator: preset?.condition_operator || '==',
+        time_window: preset?.time_window || '持续生效(全时段)',
+        notes: preset?.notes || '',
+      };
+    } else if (type === 'event_sequence') {
+      const defaultPattern = eventPatterns[0];
+      newSymptom = {
+        id: `SYM-SEQ-${Date.now()}-${nextIdx}`,
+        type: 'event_sequence',
+        device_type: preset?.device_type || defaultPattern?.device_type || 'cooling_pump',
+        device_name: preset?.device_name || defaultPattern?.fault_name || '冷却系统',
+        metric_name: preset?.sequence_name || defaultPattern?.name || `日志时序特征 ${nextIdx}`,
+        sequence_id: preset?.sequence_id || defaultPattern?.id || 'SEQ-F001-01',
+        sequence_name: preset?.sequence_name || defaultPattern?.name || '冷却泵停转与热量积聚日志规则',
+        log_source: preset?.log_source || defaultPattern?.log_source || 'tms_system.log',
+        time_window: preset?.time_window || defaultPattern?.time_window || '[-5min, 0min]',
+        keywords: preset?.keywords || defaultPattern?.keywords || 'TMS_PUMP_CURRENT_LOST',
+        stat_type: preset?.stat_type || defaultPattern?.stat_type || 'count',
+        stat_condition: preset?.stat_condition || defaultPattern?.stat_condition || '出现次数 >= 2 次',
+        notes: preset?.notes || '',
+      };
+    } else {
+      // indicator (default)
+      const defaultInd = indicators[0];
+      const inferred = inferDeviceTypeFromIndicator(
+        preset?.metric_name ? { name: preset.metric_name, code: preset.metric_code } : defaultInd
+      );
+      newSymptom = {
+        id: `SYM-IND-${Date.now()}-${nextIdx}`,
+        type: 'indicator',
+        device_type: preset?.device_type || inferred.device_type,
+        device_name: preset?.device_name || inferred.device_name,
+        indicator_id: preset?.indicator_id || defaultInd?.id || 'coolant_flow',
+        metric_code: preset?.metric_code || defaultInd?.code || 'coolant_flow',
+        metric_name: preset?.metric_name || defaultInd?.name || `监测参数指标 ${nextIdx}`,
+        direction: preset?.direction || 'up',
+        time_window: preset?.time_window || '0-5min',
+        normal_range: preset?.normal_range || defaultInd?.normal_range || '20-40°C',
+        unit: preset?.unit || defaultInd?.unit || '',
+        notes: preset?.notes || '',
+      };
+    }
 
     setFormData({
       ...formData,
@@ -173,6 +245,105 @@ export const FaultEditor: React.FC = () => {
       device_type: existing?.device_type || inferred.device_type,
       device_name: existing?.device_name || inferred.device_name,
     });
+  };
+
+  const handleSelectAlarmForSymptom = (symptomId: string, alarmIdOrCode: string) => {
+    const selectedAlarm = alarms.find((a) => a.id === alarmIdOrCode || a.code === alarmIdOrCode);
+    if (!selectedAlarm) return;
+    handleUpdateSymptom(symptomId, {
+      alarm_id: selectedAlarm.id,
+      alarm_code: selectedAlarm.code,
+      alarm_name: selectedAlarm.name,
+      metric_name: selectedAlarm.name,
+      alarm_level: selectedAlarm.level,
+      trigger_condition: selectedAlarm.description || selectedAlarm.typical_threshold || '',
+    });
+  };
+
+  const handleSelectParameterForSymptom = (symptomId: string, paramIdOrCode: string) => {
+    const selectedParam = parameters.find((p) => p.id === paramIdOrCode || p.code === paramIdOrCode);
+    if (!selectedParam) return;
+    handleUpdateSymptom(symptomId, {
+      parameter_id: selectedParam.id,
+      parameter_code: selectedParam.code,
+      parameter_name: selectedParam.name,
+      metric_name: selectedParam.name,
+      baseline_value: selectedParam.default_value,
+      condition_operator: selectedParam.data_type === 'enum' || selectedParam.data_type === 'string' ? '==' : '!=',
+      abnormal_value: selectedParam.data_type === 'enum' && selectedParam.enum_values?.length
+        ? selectedParam.enum_values.find((v) => v !== selectedParam.default_value) || 'manual'
+        : 'abnormal',
+    });
+  };
+
+  const handleSelectEventPatternForSymptom = (symptomId: string, patternId: string) => {
+    const selectedPattern = eventPatterns.find((ep) => ep.id === patternId);
+    if (!selectedPattern) return;
+    handleUpdateSymptom(symptomId, {
+      sequence_id: selectedPattern.id,
+      sequence_name: selectedPattern.name,
+      metric_name: selectedPattern.name,
+      log_source: selectedPattern.log_source,
+      time_window: selectedPattern.time_window,
+      keywords: selectedPattern.keywords,
+      stat_type: selectedPattern.stat_type,
+      stat_condition: selectedPattern.stat_condition,
+      device_type: selectedPattern.device_type,
+    });
+  };
+
+  const handleSwitchSymptomType = (symptomId: string, newType: SymptomType) => {
+    const symptom = (formData.symptoms || []).find((s) => s.id === symptomId);
+    if (!symptom || (symptom.type || 'indicator') === newType) return;
+    if (newType === 'alarm') {
+      const defaultAlarm = alarms[0];
+      handleUpdateSymptom(symptomId, {
+        type: 'alarm',
+        alarm_id: defaultAlarm?.id || 'ALM_01',
+        alarm_code: defaultAlarm?.code || 'ALM_PUMP_FLOW_LOW',
+        alarm_name: defaultAlarm?.name || '冷却泵低流量告警',
+        metric_name: defaultAlarm?.name || '冷却泵低流量告警',
+        alarm_level: defaultAlarm?.level || 'high',
+        trigger_condition: '连续低于 50 L/min 超过 3s',
+      });
+    } else if (newType === 'parameter') {
+      const defaultParam = parameters[0];
+      handleUpdateSymptom(symptomId, {
+        type: 'parameter',
+        parameter_id: defaultParam?.id || 'pump_control_mode',
+        parameter_code: defaultParam?.code || 'pump_control_mode',
+        parameter_name: defaultParam?.name || '冷却泵控制模式',
+        metric_name: defaultParam?.name || '冷却泵控制模式',
+        baseline_value: defaultParam?.default_value ?? 'auto',
+        abnormal_value: 'manual',
+        condition_operator: '==',
+      });
+    } else if (newType === 'event_sequence') {
+      const defaultPattern = eventPatterns[0];
+      handleUpdateSymptom(symptomId, {
+        type: 'event_sequence',
+        sequence_id: defaultPattern?.id || 'SEQ-F001-01',
+        sequence_name: defaultPattern?.name || '冷却泵停转与热量积聚日志规则',
+        metric_name: defaultPattern?.name || '冷却泵停转与热量积聚日志规则',
+        log_source: defaultPattern?.log_source || 'tms_system.log',
+        time_window: defaultPattern?.time_window || '[-5min, 0min]',
+        keywords: defaultPattern?.keywords || 'TMS_PUMP_CURRENT_LOST',
+        stat_type: defaultPattern?.stat_type || 'count',
+        stat_condition: defaultPattern?.stat_condition || '出现次数 >= 2 次',
+      });
+    } else {
+      const defaultInd = indicators[0];
+      handleUpdateSymptom(symptomId, {
+        type: 'indicator',
+        indicator_id: defaultInd?.id || 'coolant_flow',
+        metric_code: defaultInd?.code || 'coolant_flow',
+        metric_name: defaultInd?.name || '冷却回路实际流量',
+        direction: 'up',
+        time_window: '0-5min',
+        normal_range: defaultInd?.normal_range || '120-150 L/min',
+        unit: defaultInd?.unit || 'L/min',
+      });
+    }
   };
 
   const handleDeleteSymptom = (id: string) => {
@@ -438,58 +609,235 @@ export const FaultEditor: React.FC = () => {
           </div>
         )}
 
-        {/* Sub-Tab 2: Symptoms Table */}
+        {/* Sub-Tab 2: Symptoms Configuration (Indicators, Alarms, Parameters, Event Sequences) */}
         {activeSubTab === 'symptoms' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                   <Activity className="w-4 h-4 text-slate-700" />
-                  <span>特征症状定义 (引用指标库 & 表格录入)</span>
+                  <span>异常症状特征配置 (关联指标、告警、配置参数、事件序列)</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  从统一时序指标库引用监测参数，自动带入量程基准，定义异常变化方向与时间窗口
+                  支持从统一指标库、系统告警库、配置参数库与事件序列/日志规则库结构化录入故障特征，精准配置日志时段、关键字与统计条件
                 </p>
               </div>
 
-              <div className="flex items-center space-x-2">
+              {/* 4 Add Buttons for each Symptom Type */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => handleAddSymptom()}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium shadow-xs"
+                  type="button"
+                  onClick={() => handleAddSymptom('indicator')}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-medium shadow-xs transition"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ 添加症状特征</span>
+                  <Gauge className="w-3.5 h-3.5" />
+                  <span>+ 标准指标</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddSymptom('alarm')}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-medium shadow-xs transition"
+                >
+                  <BellRing className="w-3.5 h-3.5" />
+                  <span>+ 系统告警</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddSymptom('parameter')}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-medium shadow-xs transition"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>+ 配置参数</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddSymptom('event_sequence')}
+                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-medium shadow-xs transition"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>+ 事件序列</span>
                 </button>
               </div>
             </div>
 
-            {/* Quick Indicators from Library */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-slate-500 flex items-center space-x-1 mr-1">
-                <Sparkles className="w-3 h-3 text-slate-400" />
-                <span>指标库快速挂载:</span>
-              </span>
-              {indicators.slice(0, 8).map((ind) => (
-                <button
-                  key={ind.id}
-                  type="button"
-                  onClick={() =>
-                    handleAddSymptom({
-                      indicator_id: ind.id,
-                      metric_code: ind.code,
-                      metric_name: ind.name,
-                      unit: ind.unit,
-                      normal_range: ind.normal_range || '',
-                      direction: ind.code.includes('leak') || ind.code.includes('fire') ? 'abnormal_high' : 'up',
-                    })
-                  }
-                  className="text-[11px] px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center space-x-1"
-                >
-                  <Gauge className="w-3 h-3 text-slate-500" />
-                  <span>+ {ind.name}</span>
-                  <span className="text-[9px] font-mono text-slate-400">({ind.code})</span>
-                </button>
-              ))}
+            {/* Filter Tabs by Symptom Type */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex items-center space-x-1">
+                <span className="text-[11px] text-slate-500 mr-2 flex items-center space-x-1">
+                  <Filter className="w-3 h-3 text-slate-400" />
+                  <span>按类型筛选:</span>
+                </span>
+                {[
+                  { id: 'all', label: '全部特征', count: (formData.symptoms || []).length },
+                  {
+                    id: 'indicator',
+                    label: '标准指标',
+                    count: (formData.symptoms || []).filter((s) => !s.type || s.type === 'indicator').length,
+                    color: 'text-blue-700',
+                  },
+                  {
+                    id: 'alarm',
+                    label: '系统告警',
+                    count: (formData.symptoms || []).filter((s) => s.type === 'alarm').length,
+                    color: 'text-rose-700',
+                  },
+                  {
+                    id: 'parameter',
+                    label: '配置参数',
+                    count: (formData.symptoms || []).filter((s) => s.type === 'parameter').length,
+                    color: 'text-purple-700',
+                  },
+                  {
+                    id: 'event_sequence',
+                    label: '事件序列',
+                    count: (formData.symptoms || []).filter((s) => s.type === 'event_sequence').length,
+                    color: 'text-emerald-700',
+                  },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSymptomFilterType(tab.id as any)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
+                      symptomFilterType === tab.id
+                        ? 'bg-white text-slate-900 shadow-xs border border-slate-200 font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200/70 text-slate-700">
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="text-[11px] text-slate-500">
+                共关联 <span className="font-bold text-slate-800">{(formData.symptoms || []).length}</span> 项故障症状特征
+              </div>
+            </div>
+
+            {/* Quick Mount Libraries Bar */}
+            <div className="space-y-1.5 p-3 rounded-lg bg-slate-50/70 border border-slate-200 text-xs">
+              <div className="flex items-center space-x-1.5 text-[11px] font-semibold text-slate-700">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>从知识库快速关联挂载:</span>
+              </div>
+
+              {/* Indicators Quick Mount */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                  指标库:
+                </span>
+                {indicators.slice(0, 5).map((ind) => (
+                  <button
+                    key={ind.id}
+                    type="button"
+                    onClick={() =>
+                      handleAddSymptom('indicator', {
+                        indicator_id: ind.id,
+                        metric_code: ind.code,
+                        metric_name: ind.name,
+                        unit: ind.unit,
+                        normal_range: ind.normal_range || '',
+                        direction: ind.code.includes('leak') || ind.code.includes('fire') ? 'abnormal_high' : 'up',
+                      })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded bg-white hover:bg-blue-50 text-slate-700 border border-slate-200 hover:border-blue-300 transition flex items-center space-x-1"
+                  >
+                    <Gauge className="w-2.5 h-2.5 text-blue-500" />
+                    <span>+ {ind.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Alarms Quick Mount */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                  告警库:
+                </span>
+                {alarms.slice(0, 4).map((alm) => (
+                  <button
+                    key={alm.id}
+                    type="button"
+                    onClick={() =>
+                      handleAddSymptom('alarm', {
+                        alarm_id: alm.id,
+                        alarm_code: alm.code,
+                        alarm_name: alm.name,
+                        alarm_level: alm.level,
+                        trigger_condition: alm.description || alm.typical_threshold || '告警触发',
+                      })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded bg-white hover:bg-rose-50 text-slate-700 border border-slate-200 hover:border-rose-300 transition flex items-center space-x-1"
+                  >
+                    <BellRing className="w-2.5 h-2.5 text-rose-500" />
+                    <span>+ {alm.name}</span>
+                    <span className="text-[9px] font-mono text-slate-400">({alm.code})</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Parameters Quick Mount */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">
+                  配置参数:
+                </span>
+                {parameters.slice(0, 4).map((pm) => (
+                  <button
+                    key={pm.id}
+                    type="button"
+                    onClick={() =>
+                      handleAddSymptom('parameter', {
+                        parameter_id: pm.id,
+                        parameter_code: pm.code,
+                        parameter_name: pm.name,
+                        baseline_value: pm.default_value,
+                        condition_operator: pm.data_type === 'enum' || pm.data_type === 'string' ? '==' : '!=',
+                        abnormal_value: pm.data_type === 'enum' && pm.enum_values?.length ? pm.enum_values.find(v => v !== pm.default_value) || 'manual' : 'abnormal',
+                      })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded bg-white hover:bg-purple-50 text-slate-700 border border-slate-200 hover:border-purple-300 transition flex items-center space-x-1"
+                  >
+                    <SlidersHorizontal className="w-2.5 h-2.5 text-purple-500" />
+                    <span>+ {pm.name}</span>
+                    <span className="text-[9px] font-mono text-slate-400">({pm.code})</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Event Sequences Quick Mount */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                  事件序列:
+                </span>
+                {eventPatterns.map((ep) => (
+                  <button
+                    key={ep.id}
+                    type="button"
+                    onClick={() =>
+                      handleAddSymptom('event_sequence', {
+                        sequence_id: ep.id,
+                        sequence_name: ep.name,
+                        log_source: ep.log_source,
+                        time_window: ep.time_window,
+                        keywords: ep.keywords,
+                        stat_type: ep.stat_type,
+                        stat_condition: ep.stat_condition,
+                        device_type: ep.device_type,
+                      })
+                    }
+                    className="text-[11px] px-2 py-0.5 rounded bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200 hover:border-emerald-300 transition flex items-center space-x-1"
+                  >
+                    <History className="w-2.5 h-2.5 text-emerald-500" />
+                    <span>+ {ep.name}</span>
+                    <span className="text-[9px] font-mono text-slate-400">({ep.log_source})</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Symptoms Table */}
@@ -497,157 +845,479 @@ export const FaultEditor: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-600 text-[11px] uppercase border-b border-slate-200 font-semibold">
                   <tr>
-                    <th className="py-2.5 px-3 w-10">#</th>
-                    <th className="py-2.5 px-3 min-w-[190px]">所属设备类型 (Device Type)</th>
-                    <th className="py-2.5 px-3 min-w-[240px]">关联标准指标 (Indicator)</th>
-                    <th className="py-2.5 px-3 min-w-[140px]">变化方向 (Direction)</th>
-                    <th className="py-2.5 px-3 min-w-[110px]">时间窗口 (Time Window)</th>
-                    <th className="py-2.5 px-3 min-w-[140px]">正常基准范围 (Normal Range)</th>
-                    <th className="py-2.5 px-3 w-14 text-center">操作</th>
+                    <th className="py-2.5 px-3 w-12 text-center"># / 类型</th>
+                    <th className="py-2.5 px-3 min-w-[170px]">所属设备类型 (Device)</th>
+                    <th className="py-2.5 px-3 min-w-[280px]">关联对象与特征内容 (Associated Target)</th>
+                    <th className="py-2.5 px-3 min-w-[150px]">变化方向 / 触发判定 (Condition)</th>
+                    <th className="py-2.5 px-3 min-w-[120px]">时段窗口 (Time Window)</th>
+                    <th className="py-2.5 px-3 min-w-[150px]">基准 / 参考范围 (Baseline)</th>
+                    <th className="py-2.5 px-3 w-12 text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {(formData.symptoms || []).map((symptom, sIdx) => {
-                    const matchedInd = indicators.find(
-                      (i) =>
-                        i.id === symptom.indicator_id ||
-                        i.code === symptom.indicator_id ||
-                        i.code === symptom.metric_code ||
-                        i.name === symptom.metric_name
-                    );
+                  {(formData.symptoms || [])
+                    .filter((symptom) => {
+                      if (symptomFilterType === 'all') return true;
+                      const sType = symptom.type || 'indicator';
+                      return sType === symptomFilterType;
+                    })
+                    .map((symptom, sIdx) => {
+                      const sType = symptom.type || 'indicator';
+                      const matchedInd = indicators.find(
+                        (i) =>
+                          i.id === symptom.indicator_id ||
+                          i.code === symptom.indicator_id ||
+                          i.code === symptom.metric_code ||
+                          i.name === symptom.metric_name
+                      );
+                      const matchedAlarm = alarms.find(
+                        (a) => a.id === symptom.alarm_id || a.code === symptom.alarm_code
+                      );
+                      const matchedParam = parameters.find(
+                        (p) => p.id === symptom.parameter_id || p.code === symptom.parameter_code
+                      );
+                      const matchedPattern = eventPatterns.find(
+                        (ep) => ep.id === symptom.sequence_id
+                      );
 
-                    return (
-                      <tr key={`${symptom.id}-${sIdx}`} className="hover:bg-slate-50/70 transition">
-                        <td className="py-2.5 px-3 text-slate-400 font-mono">{sIdx + 1}</td>
-                        {/* Device Type Column */}
-                        <td className="py-2.5 px-3">
-                          <div className="space-y-1">
-                            <select
-                              value={symptom.device_type || 'other'}
-                              onChange={(e) => {
-                                const val = e.target.value as DeviceTypeCategory;
-                                const opt = DEVICE_TYPE_OPTIONS.find((o) => o.value === val);
-                                handleUpdateSymptom(symptom.id, {
-                                  device_type: val,
-                                  device_name: symptom.device_name || opt?.label || '',
-                                });
-                              }}
-                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
-                            >
-                              {DEVICE_TYPE_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
+                      return (
+                        <tr key={`${symptom.id}-${sIdx}`} className="hover:bg-slate-50/70 transition">
+                          {/* # & Type badge */}
+                          <td className="py-2.5 px-3 text-center align-top">
+                            <div className="flex flex-col items-center space-y-1">
+                              <span className="text-slate-400 font-mono text-[11px]">{sIdx + 1}</span>
+                              <select
+                                value={sType}
+                                onChange={(e) => handleSwitchSymptomType(symptom.id, e.target.value as SymptomType)}
+                                className={`text-[10px] font-bold px-1 py-0.5 rounded border focus:outline-none cursor-pointer ${
+                                  sType === 'indicator'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : sType === 'alarm'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : sType === 'parameter'
+                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                <option value="indicator">指标</option>
+                                <option value="alarm">告警</option>
+                                <option value="parameter">参数</option>
+                                <option value="event_sequence">序列</option>
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* Device Type Column */}
+                          <td className="py-2.5 px-3 align-top">
+                            <div className="space-y-1">
+                              <select
+                                value={symptom.device_type || 'other'}
+                                onChange={(e) => {
+                                  const val = e.target.value as DeviceTypeCategory;
+                                  const opt = DEVICE_TYPE_OPTIONS.find((o) => o.value === val);
+                                  handleUpdateSymptom(symptom.id, {
+                                    device_type: val,
+                                    device_name: symptom.device_name || opt?.label || '',
+                                  });
+                                }}
+                                className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                              >
+                                {DEVICE_TYPE_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                value={symptom.device_name || ''}
+                                onChange={(e) =>
+                                  handleUpdateSymptom(symptom.id, { device_name: e.target.value })
+                                }
+                                placeholder="具体设备名称(选填)"
+                                className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:border-slate-400 placeholder:text-slate-400"
+                              />
+                            </div>
+                          </td>
+
+                          {/* Associated Target & Content Details */}
+                          <td className="py-2.5 px-3 align-top">
+                            {/* 1. INDICATOR TYPE */}
+                            {sType === 'indicator' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1 py-0.5 rounded">
+                                    时序指标
+                                  </span>
+                                  <select
+                                    value={matchedInd?.id || symptom.indicator_id || ''}
+                                    onChange={(e) =>
+                                      handleSelectIndicatorForSymptom(symptom.id, e.target.value)
+                                    }
+                                    className="flex-1 px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                                  >
+                                    <option value="">-- 从指标库选择 --</option>
+                                    {indicators.map((ind, idx) => (
+                                      <option key={`${ind.id}-${idx}`} value={ind.id}>
+                                        [{ind.domain}] {ind.name} ({ind.code}) • {ind.unit}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">
+                                  <span className="font-semibold text-slate-700">
+                                    {symptom.metric_name}
+                                    {symptom.metric_code && (
+                                      <span className="font-mono text-slate-400 ml-1">
+                                        ({symptom.metric_code})
+                                      </span>
+                                    )}
+                                  </span>
+                                  {matchedInd && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openIndicatorEditor(matchedInd.id)}
+                                      className="text-blue-600 hover:underline flex items-center space-x-0.5"
+                                      title="前往指标库查看此定义"
+                                    >
+                                      <span>指标库</span>
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 2. ALARM TYPE */}
+                            {sType === 'alarm' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-[10px] text-rose-600 font-bold bg-rose-50 px-1 py-0.5 rounded">
+                                    系统告警
+                                  </span>
+                                  <select
+                                    value={matchedAlarm?.id || symptom.alarm_id || ''}
+                                    onChange={(e) =>
+                                      handleSelectAlarmForSymptom(symptom.id, e.target.value)
+                                    }
+                                    className="flex-1 px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                                  >
+                                    <option value="">-- 从告警库选择 --</option>
+                                    {alarms.map((alm) => (
+                                      <option key={alm.id} value={alm.id}>
+                                        [{alm.level.toUpperCase()}] {alm.name} ({alm.code})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-1 text-[11px]">
+                                  <input
+                                    type="text"
+                                    value={symptom.alarm_code || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSymptom(symptom.id, { alarm_code: e.target.value })
+                                    }
+                                    placeholder="告警编码 如: ALM_PUMP_LOW"
+                                    className="px-2 py-0.5 rounded bg-white border border-slate-200 font-mono text-slate-700"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={symptom.trigger_condition || ''}
+                                    onChange={(e) =>
+                                      handleUpdateSymptom(symptom.id, { trigger_condition: e.target.value })
+                                    }
+                                    placeholder="触发条件 如: 流量<50L持续3s"
+                                    className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 3. CONFIG PARAMETER TYPE */}
+                            {sType === 'parameter' && (
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-1 py-0.5 rounded">
+                                    配置参数
+                                  </span>
+                                  <select
+                                    value={matchedParam?.id || symptom.parameter_id || ''}
+                                    onChange={(e) =>
+                                      handleSelectParameterForSymptom(symptom.id, e.target.value)
+                                    }
+                                    className="flex-1 px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                                  >
+                                    <option value="">-- 从配置参数库选择 (43项) --</option>
+                                    {parameters.map((pm) => (
+                                      <option key={pm.id} value={pm.id}>
+                                        [{pm.domain}] {pm.name} ({pm.code})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center space-x-1.5 text-[11px]">
+                                  <span className="text-slate-500">异常偏离设定:</span>
+                                  <select
+                                    value={symptom.condition_operator || '=='}
+                                    onChange={(e) =>
+                                      handleUpdateSymptom(symptom.id, { condition_operator: e.target.value as any })
+                                    }
+                                    className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 font-mono"
+                                  >
+                                    <option value="==">等于 (==)</option>
+                                    <option value="!=">不等于 (!=)</option>
+                                    <option value="<">小于 (&lt;)</option>
+                                    <option value=">">大于 (&gt;)</option>
+                                    <option value="<=">小于等于 (&lt;=)</option>
+                                    <option value=">=">大于等于 (&gt;=)</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    value={symptom.abnormal_value !== undefined ? String(symptom.abnormal_value) : ''}
+                                    onChange={(e) =>
+                                      handleUpdateSymptom(symptom.id, { abnormal_value: e.target.value })
+                                    }
+                                    placeholder="致错取值 如: manual"
+                                    className="flex-1 px-2 py-0.5 rounded bg-white border border-slate-200 font-mono text-purple-700"
+                                  />
+                                  {matchedParam && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openParameterEditor(matchedParam.id)}
+                                      className="text-purple-600 hover:underline flex items-center space-x-0.5 text-[10px]"
+                                    >
+                                      <span>详情</span>
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 4. EVENT SEQUENCE TYPE */}
+                            {sType === 'event_sequence' && (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1 py-0.5 rounded">
+                                    事件序列
+                                  </span>
+                                  <select
+                                    value={matchedPattern?.id || symptom.sequence_id || ''}
+                                    onChange={(e) =>
+                                      handleSelectEventPatternForSymptom(symptom.id, e.target.value)
+                                    }
+                                    className="flex-1 px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                                  >
+                                    <option value="">-- 从事件序列规则库选择 --</option>
+                                    {eventPatterns.map((ep) => (
+                                      <option key={ep.id} value={ep.id}>
+                                        [{ep.id}] {ep.name} ({ep.log_source})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab('event-logs')}
+                                    className="px-1.5 py-1 text-[10px] text-emerald-700 hover:underline flex items-center space-x-0.5 bg-emerald-50 rounded border border-emerald-200"
+                                    title="前往事件序列规则库深度配置"
+                                  >
+                                    <span>规则库</span>
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+
+                                {/* 4 Core Query Elements inline */}
+                                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                                  <div>
+                                    <label className="block text-[10px] text-slate-400">哪个日志 (log_source):</label>
+                                    <input
+                                      type="text"
+                                      value={symptom.log_source || ''}
+                                      onChange={(e) =>
+                                        handleUpdateSymptom(symptom.id, { log_source: e.target.value })
+                                      }
+                                      placeholder="如: tms_system.log"
+                                      className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 font-mono text-slate-800 text-xs"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] text-slate-400">关键字 / 正则 (keywords):</label>
+                                    <input
+                                      type="text"
+                                      value={symptom.keywords || ''}
+                                      onChange={(e) =>
+                                        handleUpdateSymptom(symptom.id, { keywords: e.target.value })
+                                      }
+                                      placeholder="如: TMS_PUMP_CURRENT_LOST"
+                                      className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 font-mono text-emerald-700 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Direction / Condition Column */}
+                          <td className="py-2.5 px-3 align-top">
+                            {sType === 'indicator' ? (
+                              <select
+                                value={symptom.direction || 'up'}
+                                onChange={(e) =>
+                                  handleUpdateSymptom(symptom.id, {
+                                    direction: e.target.value as any,
+                                  })
+                                }
+                                className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
+                              >
+                                <option value="up">↑ 持续升高 / 越上限</option>
+                                <option value="down">↓ 持续骤降 / 越下限</option>
+                                <option value="fluctuate">~ 剧烈波动 / 异常震荡</option>
+                                <option value="abnormal_high">▲ 偏高异常</option>
+                                <option value="abnormal_low">▼ 偏低异常</option>
+                              </select>
+                            ) : sType === 'alarm' ? (
+                              <select
+                                value={symptom.alarm_level || 'high'}
+                                onChange={(e) =>
+                                  handleUpdateSymptom(symptom.id, {
+                                    alarm_level: e.target.value as any,
+                                  })
+                                }
+                                className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-semibold focus:outline-none focus:border-slate-400"
+                              >
+                                <option value="critical">🔴 致命告警 (Critical)</option>
+                                <option value="high">🟠 严重告警 (High)</option>
+                                <option value="medium">🟡 中度告警 (Medium)</option>
+                                <option value="low">🔵 提示告警 (Low)</option>
+                              </select>
+                            ) : sType === 'parameter' ? (
+                              <div className="flex items-center space-x-1">
+                                <span className="font-mono text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded text-xs">
+                                  {symptom.condition_operator || '=='} {String(symptom.abnormal_value || '')}
+                                </span>
+                              </div>
+                            ) : (
+                              /* Event Sequence stat condition */
+                              <div className="space-y-1">
+                                <select
+                                  value={symptom.stat_type || 'count'}
+                                  onChange={(e) =>
+                                    handleUpdateSymptom(symptom.id, {
+                                      stat_type: e.target.value as any,
+                                    })
+                                  }
+                                  className="w-full px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-800"
+                                >
+                                  <option value="count">出现次数 (Count)</option>
+                                  <option value="rate">发生频次 (Rate/min)</option>
+                                  <option value="duration">持续时长 (Duration s)</option>
+                                  <option value="first_seen">首现时刻 (First Seen)</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  value={symptom.stat_condition || ''}
+                                  onChange={(e) =>
+                                    handleUpdateSymptom(symptom.id, { stat_condition: e.target.value })
+                                  }
+                                  placeholder="如: >= 2 次"
+                                  className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 text-xs font-mono text-emerald-700"
+                                />
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Time Window Column */}
+                          <td className="py-2.5 px-3 align-top">
                             <input
                               type="text"
-                              value={symptom.device_name || ''}
+                              value={symptom.time_window || ''}
                               onChange={(e) =>
-                                handleUpdateSymptom(symptom.id, { device_name: e.target.value })
+                                handleUpdateSymptom(symptom.id, { time_window: e.target.value })
                               }
-                              placeholder="具体设备名称(选填)"
-                              className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:border-slate-400 placeholder:text-slate-400"
+                              placeholder={
+                                sType === 'event_sequence'
+                                  ? '如: [-5min, 0min]'
+                                  : sType === 'parameter'
+                                  ? '如: 持续生效'
+                                  : '如: 0-5min'
+                              }
+                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
                             />
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="space-y-1">
-                            <select
-                              value={matchedInd?.id || symptom.indicator_id || ''}
-                              onChange={(e) =>
-                                handleSelectIndicatorForSymptom(symptom.id, e.target.value)
-                              }
-                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
-                            >
-                              <option value="">-- 从指标库选择标准时序参数 --</option>
-                              {indicators.map((ind, idx) => (
-                                <option key={`${ind.id}-${idx}`} value={ind.id}>
-                                  [{ind.domain}] {ind.name} ({ind.code}) • {ind.unit}
-                                </option>
-                              ))}
-                            </select>
-
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">
-                              <span className="flex items-center space-x-1">
-                                <span className="font-semibold text-slate-700">
-                                  {symptom.metric_name}
-                                </span>
-                                {symptom.metric_code && (
-                                  <span className="font-mono text-slate-400">
-                                    ({symptom.metric_code})
-                                  </span>
-                                )}
-                              </span>
-                              {matchedInd && (
-                                <button
-                                  type="button"
-                                  onClick={() => openIndicatorEditor(matchedInd.id)}
-                                  className="text-slate-900 hover:underline flex items-center space-x-0.5"
-                                  title="前往指标库查看此定义"
-                                >
-                                  <span>指标库定义</span>
-                                  <ExternalLink className="w-2.5 h-2.5" />
-                                </button>
-                              )}
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {sType === 'event_sequence' ? '相对故障时刻' : '特征发生时段'}
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <select
-                            value={symptom.direction}
-                            onChange={(e) =>
-                              handleUpdateSymptom(symptom.id, {
-                                direction: e.target.value as any,
-                              })
-                            }
-                            className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
-                          >
-                            <option value="up">↑ 持续升高 / 越上限</option>
-                            <option value="down">↓ 持续骤降 / 越下限</option>
-                            <option value="fluctuate">~ 剧烈波动 / 异常震荡</option>
-                            <option value="abnormal_high">▲ 偏高异常</option>
-                            <option value="abnormal_low">▼ 偏低异常</option>
-                          </select>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <input
-                            type="text"
-                            value={symptom.time_window}
-                            onChange={(e) =>
-                              handleUpdateSymptom(symptom.id, { time_window: e.target.value })
-                            }
-                            placeholder="如: 0-5min"
-                            className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
-                          />
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <input
-                            type="text"
-                            value={symptom.normal_range || ''}
-                            onChange={(e) =>
-                              handleUpdateSymptom(symptom.id, { normal_range: e.target.value })
-                            }
-                            placeholder="如: 40-65°C"
-                            className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-mono"
-                          />
-                        </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <button
-                            onClick={() => handleDeleteSymptom(symptom.id)}
-                            className="p-1 text-slate-400 hover:text-rose-600 transition"
-                            title="删除此症状"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+
+                          {/* Baseline / Normal Range Column */}
+                          <td className="py-2.5 px-3 align-top">
+                            {sType === 'indicator' && (
+                              <input
+                                type="text"
+                                value={symptom.normal_range || ''}
+                                onChange={(e) =>
+                                  handleUpdateSymptom(symptom.id, { normal_range: e.target.value })
+                                }
+                                placeholder="如: 40-65°C"
+                                className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400 font-mono"
+                              />
+                            )}
+
+                            {sType === 'alarm' && (
+                              <div className="text-xs text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200">
+                                正常状态: <span className="font-mono text-emerald-600 font-semibold">无告警复归 (0)</span>
+                              </div>
+                            )}
+
+                            {sType === 'parameter' && (
+                              <div className="space-y-0.5 text-xs text-slate-700">
+                                <span className="text-[10px] text-slate-400 block">出厂/健康基准值:</span>
+                                <input
+                                  type="text"
+                                  value={symptom.baseline_value !== undefined ? String(symptom.baseline_value) : ''}
+                                  onChange={(e) =>
+                                    handleUpdateSymptom(symptom.id, { baseline_value: e.target.value })
+                                  }
+                                  placeholder="出厂基准值"
+                                  className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 font-mono text-xs"
+                                />
+                              </div>
+                            )}
+
+                            {sType === 'event_sequence' && (
+                              <div className="text-[11px] text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200 space-y-0.5 font-mono">
+                                <div>日志: {symptom.log_source || '未指定'}</div>
+                                <div className="text-emerald-700 truncate" title={symptom.keywords}>
+                                  匹配: {symptom.keywords || '无关键字'}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions Column */}
+                          <td className="py-2.5 px-3 text-center align-top">
+                            <button
+                              onClick={() => handleDeleteSymptom(symptom.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                              title="删除此特征项"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
                   {(!formData.symptoms || formData.symptoms.length === 0) && (
                     <tr>
-                      <td colSpan={7} className="py-6 text-center text-xs text-slate-400">
-                        暂无症状指标，点击上方"+ 添加症状特征"或从快捷指标挂载
+                      <td colSpan={7} className="py-8 text-center text-xs text-slate-400">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Activity className="w-8 h-8 text-slate-300" />
+                          <span>暂无症状特征，请从上方 "+ 标准指标"、"+ 系统告警"、"+ 配置参数" 或 "+ 事件序列" 添加</span>
+                        </div>
                       </td>
                     </tr>
                   )}

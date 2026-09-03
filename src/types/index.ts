@@ -76,18 +76,47 @@ export const DEVICE_TYPE_OPTIONS: { value: DeviceTypeCategory; label: string }[]
 
 export type SymptomDirection = 'up' | 'down' | 'fluctuate' | 'jump' | 'abnormal' | 'abnormal_high' | 'abnormal_low';
 
+export type SymptomType = 'indicator' | 'alarm' | 'parameter' | 'event_sequence';
+
 export interface Symptom {
   id: string;
+  type?: SymptomType; // 'indicator' | 'alarm' | 'parameter' | 'event_sequence' (默认 'indicator')
   device_type?: DeviceTypeCategory | string; // e.g. 'cooling_pump' | 'battery' | 'pcs' | 'transformer'
   device_id?: string; // Optional specific device reference
   device_name?: string; // Optional human-readable device name
+
+  // 1. 标准指标 (type === 'indicator')
   indicator_id?: string; // Reference to MetricIndicator.code or id (e.g. 'coolant_flow')
   metric_name: string; // e.g. '冷却液流量', '电池舱温度', '冷却泵运行电流'
   metric_code?: string; // snake_case code
-  direction: SymptomDirection; // 'up' (上升), 'down' (下降), 'fluctuate' (波动), 'jump' (突变)
-  time_window: string; // e.g. '0-5min', '5-15min'
-  normal_range: string; // e.g. '50-200 L/min', '15-35°C'
+  direction?: SymptomDirection; // 'up' (上升), 'down' (下降), 'fluctuate' (波动), 'jump' (突变)
+  normal_range?: string; // e.g. '50-200 L/min', '15-35°C'
   unit?: string; // e.g. 'L/min', '°C', 'A'
+
+  // 2. 系统告警 (type === 'alarm')
+  alarm_id?: string; // e.g. 'ALM-01'
+  alarm_code?: string; // e.g. 'ALM_PUMP_FLOW_LOW'
+  alarm_name?: string; // e.g. '冷却泵主回路低流量告警'
+  alarm_level?: SeverityLevel | string; // 'critical' | 'high' | 'medium' | 'low'
+  trigger_condition?: string; // e.g. '连续低于 50 L/min 超过 3s'
+
+  // 3. 配置参数异常 (type === 'parameter')
+  parameter_id?: string; // e.g. 'pump_control_mode'
+  parameter_code?: string; // e.g. 'pump_control_mode'
+  parameter_name?: string; // e.g. '冷却泵控制模式'
+  baseline_value?: string | number | boolean; // 出厂默认值 e.g. 'auto'
+  abnormal_value?: string | number | boolean; // 异常/致错配置 e.g. 'manual'
+  condition_operator?: string; // e.g. '== manual' 或 '!= auto'
+
+  // 4. 事件序列与日志特征 (type === 'event_sequence')
+  sequence_id?: string; // e.g. 'SEQ-TMS-PUMP-01'
+  sequence_name?: string; // e.g. '冷却泵启停失步日志序列'
+  log_source?: string; // 哪个日志: e.g. 'tms_system.log'
+  time_window?: string; // 哪个时段: e.g. '[-5min, 0min]' 或 '0-5min'
+  keywords?: string; // 关键字 / 正则: e.g. 'PUMP_FLOW_LOW|PRESSURE_COLLAPSE'
+  stat_type?: 'count' | 'rate' | 'duration' | 'first_seen'; // 次数或者统计
+  stat_condition?: string; // e.g. '出现次数 >= 3 次' 或 '持续时间 > 10s'
+
   deviation_desc?: string; // e.g. '低于下限 50 L/min'
   notes?: string;
 }
@@ -252,6 +281,7 @@ export interface VersionSnapshot {
   data: {
     devices: DeviceNode[];
     indicators?: MetricIndicator[];
+    parameters?: ConfigParameter[];
     faults: FaultPattern[];
     procedures: RecoveryProcedure[];
     alarms: AlarmType[];
@@ -260,10 +290,122 @@ export interface VersionSnapshot {
 
 export type FaultViewMode = 'list' | 'graph';
 
+// 4.9 Config Parameter Library Types (v1.1 Core Module)
+export type ParameterDataType = 'enum' | 'int' | 'float' | 'bool' | 'string';
+
+export interface EnumOption {
+  key: string; // e.g. 'auto'
+  label: string; // e.g. '自动模式'
+  description?: string;
+}
+
+export type ParameterEnumValue = EnumOption;
+
+export interface ConfigParameter {
+  id: string; // unique code, e.g. 'pump_control_mode'
+  code: string; // snake_case, unique
+  name: string; // 中文名 e.g. '冷却泵控制模式'
+  domain: string; // '储能' | 'PCS' | 'BMS' | '冷却' | '消防' | '电气' | '环控'
+  applicable_device_types: string[]; // e.g. ['pump', 'battery', 'pcs', 'bms']
+  description: string;
+  param_type: ParameterDataType;
+  enum_values?: EnumOption[]; // For enum type
+  range_min?: number; // For int / float type
+  range_max?: number; // For int / float type
+  unit?: string; // e.g. '%', '°C', 'kW', 'L/min'
+  regex_pattern?: string; // For string type
+  default_value: string | number | boolean;
+  associated_fault_ids: string[]; // Reverse lookup: faults that use or are triggered by this param
+  status: EntityStatus; // 'draft' | 'published'
+  updated_at: string;
+  author?: string;
+}
+
+// 静态配置实例与基线核对 (Static Configuration Audit)
+export interface DeviceConfigurationProfile {
+  id: string;
+  device_id: string;
+  device_name: string;
+  device_type: string;
+  profile_name: string;
+  updated_at: string;
+  configs: Record<string, string | number | boolean>; // param_code -> current_value
+  baseline_status: 'synced' | 'drift_detected' | 'critical_mismatch';
+  mismatches_count?: number;
+}
+
+// 日志与事件序列 (Event Sequence & SOE Log Diagnostics)
+export interface SoeLogEvent {
+  id: string;
+  timestamp: string; // e.g. '2026-09-02 10:14:02.124'
+  relative_ms: number; // T + ms offset
+  device_id: string;
+  device_name: string;
+  device_type: string;
+  event_code: string;
+  event_name: string;
+  severity: SeverityLevel;
+  source: 'BMS' | 'PCS' | 'TMS' | 'FSS' | 'HV' | 'EMS' | 'SCADA';
+  details?: string;
+}
+
+// 日志与事件序列规则库 (Event Sequence & Log Query Symptom Rule)
+export interface EventSequenceStep {
+  seq: number;
+  step_name: string;
+  log_source: string; // 哪个日志
+  time_window: string; // 哪个时段
+  keywords: string; // 关键字
+  stat_condition: string; // 次数或统计判定
+  mandatory?: boolean;
+}
+
+export interface EventSequencePattern {
+  id: string; // e.g. 'SEQ-TMS-PUMP-01'
+  fault_id: string; // 关联故障 ID e.g. 'F001'
+  fault_name: string; // 关联故障名称 e.g. '冷却泵故障'
+  name: string; // 规则名称 e.g. '冷却泵失步停机与低流速日志特征'
+  device_type?: string; // 关联设备类型 e.g. 'cooling_pump'
+  
+  // 核心查询四要素:
+  log_source: string; // 1. 哪个日志 e.g. 'tms_system.log'
+  time_window: string; // 2. 哪个时段 e.g. '[-5min, 0min]'
+  keywords: string; // 3. 关键字 / 正则 e.g. 'PUMP_FLOW_LOW|PRESSURE_COLLAPSE'
+  match_mode?: 'regex' | 'contains' | 'exact' | 'and' | 'or';
+  
+  stat_type?: 'count' | 'rate' | 'duration' | 'first_seen'; // 4. 次数或者统计
+  stat_operator?: '>=' | '>' | '==' | '<=' | 'between';
+  stat_threshold?: number | string; // e.g. 3
+  stat_unit?: string; // e.g. '次', '次/分', '秒'
+  stat_condition?: string; // 汇总条件文本 e.g. '出现次数 >= 3 次'
+
+  description: string; // 规则判定机理与说明
+  steps?: EventSequenceStep[]; // 多步骤有序时序链 (可选)
+
+  // 兼容旧有时序步定义 (向后兼容)
+  expected_events?: Array<{
+    seq: number;
+    delay_window: string;
+    device_type: string;
+    event_code: string;
+    event_name: string;
+    severity: SeverityLevel;
+    mandatory: boolean;
+  }>;
+
+  status?: EntityStatus;
+  updated_at?: string;
+  author?: string;
+}
+
 export type ActiveTab =
   | 'workbench'
   | 'devices'
   | 'indicators'
+  | 'parameters'
+  | 'parameter-editor'
+  | 'static-configs'
+  | 'event-logs'
   | 'faults'
   | 'fault-editor'
   | 'procedures'
