@@ -4,6 +4,8 @@ import {
   FaultPattern,
   FaultSymptom,
   SeverityLevel,
+  DeviceTypeCategory,
+  DEVICE_TYPE_OPTIONS,
 } from '../types';
 import { PropagationCanvas } from './PropagationCanvas';
 import {
@@ -28,6 +30,45 @@ import {
   Tag,
 } from 'lucide-react';
 import { generateSingleFaultYaml } from '../utils/yamlUtils';
+
+// Helper to infer suitable default device type from indicator name or code
+const inferDeviceTypeFromIndicator = (
+  ind?: { code?: string; name?: string; domain?: string }
+): { device_type: DeviceTypeCategory; device_name: string } => {
+  if (!ind) return { device_type: 'other', device_name: '辅助监控设备' };
+  const text = `${ind.code || ''} ${ind.name || ''} ${ind.domain || ''}`.toLowerCase();
+  if (text.includes('flow') || text.includes('pump') || text.includes('泵')) {
+    return { device_type: 'cooling_pump', device_name: '冷却水泵/循环机组' };
+  }
+  if (text.includes('gas') || text.includes('瓦斯')) {
+    return { device_type: 'gas_relay', device_name: '瓦斯保护继电器' };
+  }
+  if (text.includes('temp') && text.includes('oil') || text.includes('transformer') || text.includes('变压器') || text.includes('油温')) {
+    return { device_type: 'transformer', device_name: '储能主变压器' };
+  }
+  if (text.includes('cell') || text.includes('volt') || text.includes('soc') || text.includes('soh') || text.includes('diff') || text.includes('电池') || text.includes('电芯') || text.includes('压差')) {
+    return { device_type: 'battery', device_name: '储能电池簇/电芯' };
+  }
+  if (text.includes('bms') || text.includes('can') || text.includes('insul') || text.includes('绝缘') || text.includes('母线')) {
+    return { device_type: 'bms', device_name: 'BMS 电池管理系统' };
+  }
+  if (text.includes('pcs') || text.includes('igbt') || text.includes('inverter') || text.includes('变流器') || text.includes('无功')) {
+    return { device_type: 'pcs', device_name: '集中式变流器 (PCS)' };
+  }
+  if (text.includes('switch') || text.includes('breaker') || text.includes('relay') || text.includes('接触器') || text.includes('开关柜') || text.includes('断路器') || text.includes('arc') || text.includes('电弧')) {
+    return { device_type: 'switchgear', device_name: '高低压开关柜/断路器' };
+  }
+  if (text.includes('cabin') || text.includes('humidity') || text.includes('hvac') || text.includes('舱') || text.includes('湿度') || text.includes('空调')) {
+    return { device_type: 'cabin', device_name: '集装箱舱体' };
+  }
+  if (text.includes('pipe') || text.includes('leak') || text.includes('press') || text.includes('管路') || text.includes('压力') || text.includes('渗漏')) {
+    return { device_type: 'pipe', device_name: '液冷管路系统' };
+  }
+  if (text.includes('co') || text.includes('fire') || text.includes('fss') || text.includes('灭火') || text.includes('消防') || text.includes('热失控')) {
+    return { device_type: 'fss', device_name: '全氟己酮灭火系统' };
+  }
+  return { device_type: 'other', device_name: '辅助监控设备' };
+};
 
 export const FaultEditor: React.FC = () => {
   const {
@@ -90,8 +131,14 @@ export const FaultEditor: React.FC = () => {
   const handleAddSymptom = (preset?: Partial<FaultSymptom>) => {
     const nextIdx = (formData.symptoms?.length || 0) + 1;
     const defaultInd = indicators[0];
+    const inferred = inferDeviceTypeFromIndicator(
+      preset?.metric_name ? { name: preset.metric_name, code: preset.metric_code } : defaultInd
+    );
+
     const newSymptom: FaultSymptom = {
       id: `SYM-${Date.now()}-${nextIdx}`,
+      device_type: preset?.device_type || inferred.device_type,
+      device_name: preset?.device_name || inferred.device_name,
       indicator_id: preset?.indicator_id || defaultInd?.id || 'coolant_flow',
       metric_code: preset?.metric_code || defaultInd?.code || 'coolant_flow',
       metric_name: preset?.metric_name || defaultInd?.name || `监测参数指标 ${nextIdx}`,
@@ -99,6 +146,7 @@ export const FaultEditor: React.FC = () => {
       time_window: preset?.time_window || '0-5min',
       normal_range: preset?.normal_range || defaultInd?.normal_range || '20-40°C',
       unit: preset?.unit || defaultInd?.unit || '',
+      notes: preset?.notes || '',
     };
 
     setFormData({
@@ -113,12 +161,17 @@ export const FaultEditor: React.FC = () => {
     );
     if (!selectedInd) return;
 
+    const inferred = inferDeviceTypeFromIndicator(selectedInd);
+    const existing = (formData.symptoms || []).find((s) => s.id === symptomId);
+
     handleUpdateSymptom(symptomId, {
       indicator_id: selectedInd.id,
       metric_code: selectedInd.code,
       metric_name: selectedInd.name,
       unit: selectedInd.unit,
       normal_range: selectedInd.normal_range || '',
+      device_type: existing?.device_type || inferred.device_type,
+      device_name: existing?.device_name || inferred.device_name,
     });
   };
 
@@ -136,15 +189,16 @@ export const FaultEditor: React.FC = () => {
     });
   };
 
-  // Symptom preset templates
+  // Symptom preset templates with rich device context
   const PRESET_SYMPTOMS: Array<Partial<FaultSymptom>> = [
-    { metric_name: '主变压器顶层油温', direction: 'up', time_window: '0-15min', normal_range: '40-65°C', unit: '°C' },
-    { metric_name: '冷却回路实际流量', direction: 'down', time_window: '0-2min', normal_range: '120-150 L/min', unit: 'L/min' },
-    { metric_name: '重轻瓦斯继电器动作信号', direction: 'fluctuate', time_window: '15-30min', normal_range: '正常复归(0)', unit: 'BOOL' },
-    { metric_name: '直流母线对地绝缘阻抗', direction: 'down', time_window: '0-5min', normal_range: '≥ 500 kΩ', unit: 'kΩ' },
-    { metric_name: '电芯最大温差 ΔT', direction: 'up', time_window: '0-10min', normal_range: '≤ 3.0°C', unit: '°C' },
-    { metric_name: 'IGBT 桥臂工作温度', direction: 'up', time_window: '0-5min', normal_range: '35-75°C', unit: '°C' },
-    { metric_name: '一氧化碳 CO 气体浓度', direction: 'up', time_window: '0-5min', normal_range: '≤ 10 ppm', unit: 'ppm' },
+    { device_type: 'transformer', device_name: '储能主变压器', metric_name: '主变压器顶层油温', direction: 'up', time_window: '0-15min', normal_range: '40-65°C', unit: '°C' },
+    { device_type: 'cooling_pump', device_name: '主变冷却水泵', metric_name: '冷却回路实际流量', direction: 'down', time_window: '0-2min', normal_range: '120-150 L/min', unit: 'L/min' },
+    { device_type: 'gas_relay', device_name: '瓦斯保护继电器', metric_name: '重轻瓦斯继电器动作信号', direction: 'fluctuate', time_window: '15-30min', normal_range: '正常复归(0)', unit: 'BOOL' },
+    { device_type: 'bms', device_name: '高压箱绝缘监测仪', metric_name: '直流母线对地绝缘阻抗', direction: 'down', time_window: '0-5min', normal_range: '≥ 500 kΩ', unit: 'kΩ' },
+    { device_type: 'battery', device_name: '储能电池簇/电芯', metric_name: '电芯最大压差 ΔV', direction: 'up', time_window: '0-10min', normal_range: '≤ 150 mV', unit: 'mV' },
+    { device_type: 'pcs', device_name: '集中式变流器 (PCS)', metric_name: 'IGBT 桥臂工作温度', direction: 'up', time_window: '0-5min', normal_range: '35-75°C', unit: '°C' },
+    { device_type: 'cabin', device_name: '储能集装箱舱体', metric_name: '一氧化碳 CO 气体浓度', direction: 'jump', time_window: '0-5min', normal_range: '≤ 10 ppm', unit: 'ppm' },
+    { device_type: 'pipe', device_name: '闭式冷却管路', metric_name: '主回路管网工作压力', direction: 'down', time_window: '5-30min', normal_range: '0.25-0.45 MPa', unit: 'MPa' },
   ];
 
   const yamlOutput = useMemo(() => {
@@ -333,11 +387,11 @@ export const FaultEditor: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 min-h-[50px]">
-                {(formData.affected_devices || []).map((devId) => {
+                {Array.from(new Set(formData.affected_devices || [])).map((devId, idx) => {
                   const dev = devices.find((d) => d.id === devId);
                   return (
                     <div
-                      key={devId}
+                      key={`${devId}-${idx}`}
                       className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-800 text-xs font-medium shadow-xs"
                     >
                       <Layers className="w-3.5 h-3.5 text-slate-400" />
@@ -443,12 +497,13 @@ export const FaultEditor: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 text-slate-600 text-[11px] uppercase border-b border-slate-200 font-semibold">
                   <tr>
-                    <th className="py-2.5 px-3">#</th>
+                    <th className="py-2.5 px-3 w-10">#</th>
+                    <th className="py-2.5 px-3 min-w-[190px]">所属设备类型 (Device Type)</th>
                     <th className="py-2.5 px-3 min-w-[240px]">关联标准指标 (Indicator)</th>
-                    <th className="py-2.5 px-3 min-w-[140px]">变化方向 (direction)</th>
-                    <th className="py-2.5 px-3 min-w-[120px]">时间窗口 (time_window)</th>
-                    <th className="py-2.5 px-3 min-w-[150px]">正常基准范围 (normal_range)</th>
-                    <th className="py-2.5 px-3 w-16 text-center">操作</th>
+                    <th className="py-2.5 px-3 min-w-[140px]">变化方向 (Direction)</th>
+                    <th className="py-2.5 px-3 min-w-[110px]">时间窗口 (Time Window)</th>
+                    <th className="py-2.5 px-3 min-w-[140px]">正常基准范围 (Normal Range)</th>
+                    <th className="py-2.5 px-3 w-14 text-center">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -462,8 +517,40 @@ export const FaultEditor: React.FC = () => {
                     );
 
                     return (
-                      <tr key={symptom.id} className="hover:bg-slate-50/70 transition">
+                      <tr key={`${symptom.id}-${sIdx}`} className="hover:bg-slate-50/70 transition">
                         <td className="py-2.5 px-3 text-slate-400 font-mono">{sIdx + 1}</td>
+                        {/* Device Type Column */}
+                        <td className="py-2.5 px-3">
+                          <div className="space-y-1">
+                            <select
+                              value={symptom.device_type || 'other'}
+                              onChange={(e) => {
+                                const val = e.target.value as DeviceTypeCategory;
+                                const opt = DEVICE_TYPE_OPTIONS.find((o) => o.value === val);
+                                handleUpdateSymptom(symptom.id, {
+                                  device_type: val,
+                                  device_name: symptom.device_name || opt?.label || '',
+                                });
+                              }}
+                              className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
+                            >
+                              {DEVICE_TYPE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={symptom.device_name || ''}
+                              onChange={(e) =>
+                                handleUpdateSymptom(symptom.id, { device_name: e.target.value })
+                              }
+                              placeholder="具体设备名称(选填)"
+                              className="w-full px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:border-slate-400 placeholder:text-slate-400"
+                            />
+                          </div>
+                        </td>
                         <td className="py-2.5 px-3">
                           <div className="space-y-1">
                             <select
@@ -474,8 +561,8 @@ export const FaultEditor: React.FC = () => {
                               className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
                             >
                               <option value="">-- 从指标库选择标准时序参数 --</option>
-                              {indicators.map((ind) => (
-                                <option key={ind.id} value={ind.id}>
+                              {indicators.map((ind, idx) => (
+                                <option key={`${ind.id}-${idx}`} value={ind.id}>
                                   [{ind.domain}] {ind.name} ({ind.code}) • {ind.unit}
                                 </option>
                               ))}
@@ -559,7 +646,7 @@ export const FaultEditor: React.FC = () => {
                   })}
                   {(!formData.symptoms || formData.symptoms.length === 0) && (
                     <tr>
-                      <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
+                      <td colSpan={7} className="py-6 text-center text-xs text-slate-400">
                         暂无症状指标，点击上方"+ 添加症状特征"或从快捷指标挂载
                       </td>
                     </tr>
@@ -579,12 +666,14 @@ export const FaultEditor: React.FC = () => {
                 <span>故障演变与传播链 (拓扑画布)</span>
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                拖拽节点和建立传导箭头，定义故障从根因触发到各级症状演进的时间历程
+                建立明确的跨设备传导因果（A设备 a症状 ➔ B设备 b症状），定义传播时间窗口与传导机理
               </p>
             </div>
 
             <PropagationCanvas
               faultName={formData.name}
+              symptoms={formData.symptoms || []}
+              affectedDevices={formData.affected_devices || []}
               propagationChain={formData.propagation_chain || []}
               onUpdateChain={(newChain, newLayout) => {
                 setFormData({
@@ -625,11 +714,11 @@ export const FaultEditor: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sops.map((sop) => {
+              {sops.map((sop, idx) => {
                 const isSelected = (formData.associated_procedure_ids || []).includes(sop.id);
                 return (
                   <div
-                    key={sop.id}
+                    key={`${sop.id}-${idx}`}
                     onClick={() => {
                       const cur = formData.associated_procedure_ids || [];
                       const next = isSelected
@@ -747,13 +836,13 @@ export const FaultEditor: React.FC = () => {
             </div>
 
             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {devices.map((d) => {
+              {devices.map((d, idx) => {
                 const isSelected = (formData.affected_devices || []).includes(d.id);
                 return (
                   <div
-                    key={d.id}
+                    key={`${d.id}-${idx}`}
                     onClick={() => {
-                      const cur = formData.affected_devices || [];
+                      const cur = Array.from(new Set(formData.affected_devices || []));
                       const next = isSelected ? cur.filter((id) => id !== d.id) : [...cur, d.id];
                       setFormData({ ...formData, affected_devices: next });
                     }}

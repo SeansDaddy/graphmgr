@@ -213,14 +213,37 @@ export const FaultList: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1 text-xs">
-                        <div className="flex justify-between text-slate-500 font-medium">
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+                        <div className="flex justify-between text-slate-500 font-medium text-[11px]">
                           <span>特征指标 ({f.symptoms?.length || 0} 项)</span>
                           <span>传播演变 ({f.propagation_chain?.length || 0} 段)</span>
                         </div>
-                        <div className="text-slate-700 truncate font-mono text-[11px] mt-1">
-                          {f.symptoms?.[0]?.metric_name ? `• ${f.symptoms[0].metric_name} (${f.symptoms[0].direction === 'up' ? '↑' : '↓'})` : '• 暂未配置特征'}
-                        </div>
+                        {f.symptoms?.[0] ? (
+                          <div className="text-slate-700 truncate text-[11px] flex items-center space-x-1">
+                            {f.symptoms[0].device_name && (
+                              <span className="font-semibold text-slate-900">
+                                [{f.symptoms[0].device_name}]
+                              </span>
+                            )}
+                            <span className="truncate">{f.symptoms[0].metric_name}</span>
+                            <span className="font-mono text-slate-500 shrink-0">
+                              ({f.symptoms[0].direction === 'up' ? '↑' : f.symptoms[0].direction === 'down' ? '↓' : '~'})
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-slate-400 text-[11px]">暂未配置特征</div>
+                        )}
+
+                        {f.propagation_chain?.[0] && (
+                          <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200/60 truncate flex items-center space-x-1">
+                            <span className="text-amber-700 font-medium">因果:</span>
+                            <span className="truncate font-mono">
+                              {f.propagation_chain[0].from_device_name || f.propagation_chain[0].from}
+                              {' ➔ '}
+                              {f.propagation_chain[0].to_device_name || f.propagation_chain[0].to}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

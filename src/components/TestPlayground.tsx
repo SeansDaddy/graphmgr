@@ -221,8 +221,8 @@ export const TestPlayground: React.FC = () => {
                 onChange={(e) => setInputState({ ...inputState, source_device_id: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               >
-                {devices.map((d) => (
-                  <option key={d.id} value={d.id}>
+                {devices.map((d, idx) => (
+                  <option key={`${d.id}-${idx}`} value={d.id}>
                     {d.name} ({d.id})
                   </option>
                 ))}

@@ -47,10 +47,40 @@ export interface MetricIndicator {
   author?: string;
 }
 
+export type DeviceTypeCategory =
+  | 'transformer'
+  | 'cooling_pump'
+  | 'battery'
+  | 'bms'
+  | 'pcs'
+  | 'switchgear'
+  | 'cabin'
+  | 'pipe'
+  | 'fss'
+  | 'gas_relay'
+  | 'other';
+
+export const DEVICE_TYPE_OPTIONS: { value: DeviceTypeCategory; label: string }[] = [
+  { value: 'transformer', label: '主变压器' },
+  { value: 'cooling_pump', label: '冷却水泵/循环泵' },
+  { value: 'battery', label: '储能电池簇/电芯' },
+  { value: 'bms', label: 'BMS电池管理' },
+  { value: 'pcs', label: '储能变流器 (PCS)' },
+  { value: 'switchgear', label: '高低压开关柜/断路器' },
+  { value: 'cabin', label: '集装箱舱体/环境' },
+  { value: 'pipe', label: '液冷管路系统' },
+  { value: 'fss', label: '消防灭火系统' },
+  { value: 'gas_relay', label: '瓦斯保护继电器' },
+  { value: 'other', label: '其它辅助设备' },
+];
+
 export type SymptomDirection = 'up' | 'down' | 'fluctuate' | 'jump' | 'abnormal' | 'abnormal_high' | 'abnormal_low';
 
 export interface Symptom {
   id: string;
+  device_type?: DeviceTypeCategory | string; // e.g. 'cooling_pump' | 'battery' | 'pcs' | 'transformer'
+  device_id?: string; // Optional specific device reference
+  device_name?: string; // Optional human-readable device name
   indicator_id?: string; // Reference to MetricIndicator.code or id (e.g. 'coolant_flow')
   metric_name: string; // e.g. '冷却液流量', '电池舱温度', '冷却泵运行电流'
   metric_code?: string; // snake_case code
@@ -72,12 +102,29 @@ export interface PropagationStep {
   time_window: string; // e.g. '0-5min', '5-15min', '15-30min'
   description?: string;
   probability?: number; // e.g. 0.95
+
+  // Causal relationship: A设备 a症状 导致 B设备 b症状
+  from_device_type?: DeviceTypeCategory | string; // A设备类型 (e.g. 'cooling_pump', 'pipe', 'battery')
+  from_device_name?: string; // A设备名称 (e.g. '主变冷却水泵')
+  from_symptom_id?: string; // a症状ID (e.g. 'SYM-001')
+  from_symptom_name?: string; // a症状描述/名称 (e.g. '冷却回路实际流量骤降 ↓')
+
+  to_device_type?: DeviceTypeCategory | string; // B设备类型 (e.g. 'transformer', 'battery', 'pcs')
+  to_device_name?: string; // B设备名称 (e.g. '储能主变压器')
+  to_symptom_id?: string; // b症状ID (e.g. 'SYM-002')
+  to_symptom_name?: string; // b症状描述/名称 (e.g. '主变顶层油温持续攀升 ↑')
 }
 
 export interface PropagationNodePos {
   id: string;
   label: string;
   type: 'fault' | 'symptom' | 'consequence' | 'intermediate';
+  device_type?: DeviceTypeCategory | string;
+  device_name?: string;
+  symptom_id?: string;
+  symptom_name?: string;
+  metric_name?: string;
+  direction?: SymptomDirection;
   x: number;
   y: number;
 }

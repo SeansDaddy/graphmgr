@@ -695,9 +695,9 @@ export const IndicatorLibrary: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {supportingDevices.slice(0, 10).map((d) => (
+                  {supportingDevices.slice(0, 10).map((d, idx) => (
                     <button
-                      key={d.id}
+                      key={`${d.id}-${idx}`}
                       onClick={() => openDeviceInBom(d.id)}
                       className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-medium transition flex items-center space-x-1"
                     >

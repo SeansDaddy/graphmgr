@@ -113,6 +113,24 @@ const STORAGE_KEYS = {
   VERSIONS: 'diagnosgraph_versions_v1',
 };
 
+const dedupeById = <T extends { id: string }>(items: T[]): T[] => {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    if (item && item.id && !seen.has(item.id)) {
+      seen.add(item.id);
+      result.push(item);
+    }
+  }
+  return result;
+};
+
+const sanitizeFault = (f: FaultPattern): FaultPattern => ({
+  ...f,
+  affected_devices: Array.from(new Set(f.affected_devices || [])),
+});
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation
   const [activeTab, setActiveTab] = useState<ActiveTab>('workbench');
@@ -128,54 +146,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [devices, setDevices] = useState<DeviceNode[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DEVICES);
-      return saved ? JSON.parse(saved) : INITIAL_DEVICES;
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_DEVICES);
     } catch {
-      return INITIAL_DEVICES;
+      return dedupeById(INITIAL_DEVICES);
     }
   });
 
   const [faults, setFaults] = useState<FaultPattern[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FAULTS);
-      return saved ? JSON.parse(saved) : INITIAL_FAULTS;
+      const raw = saved ? JSON.parse(saved) : INITIAL_FAULTS;
+      return dedupeById(raw).map(sanitizeFault);
     } catch {
-      return INITIAL_FAULTS;
+      return dedupeById(INITIAL_FAULTS).map(sanitizeFault);
     }
   });
 
   const [sops, setSops] = useState<RecoveryProcedure[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SOPS);
-      return saved ? JSON.parse(saved) : INITIAL_SOPS;
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_SOPS);
     } catch {
-      return INITIAL_SOPS;
+      return dedupeById(INITIAL_SOPS);
     }
   });
 
   const [alarms, setAlarms] = useState<AlarmType[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ALARMS);
-      return saved ? JSON.parse(saved) : INITIAL_ALARMS;
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_ALARMS);
     } catch {
-      return INITIAL_ALARMS;
+      return dedupeById(INITIAL_ALARMS);
     }
   });
 
   const [indicators, setIndicators] = useState<MetricIndicator[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.INDICATORS);
-      return saved ? JSON.parse(saved) : INITIAL_INDICATORS;
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_INDICATORS);
     } catch {
-      return INITIAL_INDICATORS;
+      return dedupeById(INITIAL_INDICATORS);
     }
   });
 
   const [versionSnapshots, setVersionSnapshots] = useState<VersionSnapshot[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.VERSIONS);
-      return saved ? JSON.parse(saved) : INITIAL_VERSION_SNAPSHOTS;
+      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_VERSION_SNAPSHOTS);
     } catch {
-      return INITIAL_VERSION_SNAPSHOTS;
+      return dedupeById(INITIAL_VERSION_SNAPSHOTS);
     }
   });
 
@@ -272,7 +291,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Actions - Devices
   const addDevice = (partial: Partial<DeviceNode>): string => {
     const nextNum = devices.length + 1;
-    const newId = partial.id || `DEV-CUST-${String(nextNum).padStart(3, '0')}`;
+    const baseId = partial.id?.trim() || `DEV-CUST-${String(nextNum).padStart(3, '0')}`;
+    let newId = baseId;
+    let counter = 1;
+    while (devices.some((d) => d.id === newId)) {
+      newId = `${baseId}-${counter++}`;
+    }
     const newDevice: DeviceNode = {
       id: newId,
       name: partial.name || `新设备类型 ${nextNum}`,
@@ -288,7 +312,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rating_specs: partial.rating_specs || '',
       manufacturer_model: partial.manufacturer_model || '',
     };
-    setDevices((prev) => [...prev, newDevice]);
+    setDevices((prev) => dedupeById([newDevice, ...prev]));
     setSelectedDeviceId(newId);
     showToast(`已创建设备类型草稿: ${newDevice.name}`, 'success');
     return newId;
@@ -627,7 +651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: f.name || `导入故障 ${idx + 1}`,
         severity: f.severity || 'high',
         root_cause: f.root_cause || '',
-        affected_devices: f.affected_devices || [],
+        affected_devices: Array.from(new Set(f.affected_devices || [])),
         symptoms: f.symptoms || [],
         propagation_chain: f.propagation_chain || [],
         associated_procedure_ids: f.associated_procedures || f.associated_procedure_ids || [],
@@ -637,7 +661,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         author: '导入资产',
       }));
 
-      setFaults((prev) => [...importedFaults, ...prev]);
+      setFaults((prev) => dedupeById([...importedFaults, ...prev]).map(sanitizeFault));
       setSelectedFaultId(importedFaults[0].id);
       setActiveTab('fault-editor');
       showToast(`成功导入 ${importedFaults.length} 条故障定义（已转为草稿状态）`, 'success');
@@ -651,7 +675,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: f.name || '导入故障模式',
         severity: f.severity || 'high',
         root_cause: f.root_cause || '',
-        affected_devices: f.affected_devices || [],
+        affected_devices: Array.from(new Set(f.affected_devices || [])),
         symptoms: f.symptoms || [],
         propagation_chain: f.propagation_chain || [],
         associated_procedure_ids: f.associated_procedures || f.associated_procedure_ids || [],
@@ -660,7 +684,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
         author: 'YAML 导入',
       };
-      setFaults((prev) => [singleFault, ...prev]);
+      setFaults((prev) => dedupeById([singleFault, ...prev]).map(sanitizeFault));
       setSelectedFaultId(singleFault.id);
       setActiveTab('fault-editor');
       showToast(`已导入单个故障模式 [${singleFault.id}]`, 'success');
@@ -681,7 +705,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         location: d.location || '',
         rating_specs: d.rating_specs || '',
       }));
-      setDevices((prev) => [...importedDevices, ...prev]);
+      setDevices((prev) => dedupeById([...importedDevices, ...prev]));
       setActiveTab('devices');
       showToast(`成功导入 ${importedDevices.length} 个设备 BOM 节点`, 'success');
       return { success: true, message: `成功导入 ${importedDevices.length} 个设备` };
@@ -711,7 +735,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: 'draft',
         updated_at: new Date().toLocaleString('zh-CN', { hour12: false }),
       }));
-      setSops((prev) => [...importedSops, ...prev]);
+      setSops((prev) => dedupeById([...importedSops, ...prev]));
       setActiveTab('procedures');
       showToast(`成功导入 ${importedSops.length} 条 SOP 处置方案`, 'success');
       return { success: true, message: `成功导入 ${importedSops.length} 条 SOP` };
@@ -721,12 +745,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetToFactoryData = () => {
-    setDevices(INITIAL_DEVICES);
-    setFaults(INITIAL_FAULTS);
-    setSops(INITIAL_SOPS);
-    setAlarms(INITIAL_ALARMS);
-    setIndicators(INITIAL_INDICATORS);
-    setVersionSnapshots(INITIAL_VERSION_SNAPSHOTS);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.DEVICES);
+      localStorage.removeItem(STORAGE_KEYS.FAULTS);
+      localStorage.removeItem(STORAGE_KEYS.SOPS);
+      localStorage.removeItem(STORAGE_KEYS.ALARMS);
+      localStorage.removeItem(STORAGE_KEYS.INDICATORS);
+      localStorage.removeItem(STORAGE_KEYS.VERSIONS);
+    } catch {}
+    setDevices(dedupeById(INITIAL_DEVICES));
+    setFaults(dedupeById(INITIAL_FAULTS).map(sanitizeFault));
+    setSops(dedupeById(INITIAL_SOPS));
+    setAlarms(dedupeById(INITIAL_ALARMS));
+    setIndicators(dedupeById(INITIAL_INDICATORS));
+    setVersionSnapshots(dedupeById(INITIAL_VERSION_SNAPSHOTS));
     setSelectedFaultId('F001');
     setSelectedSopId('RP-F001');
     setSelectedDeviceId('DEV-CABIN-40FT');

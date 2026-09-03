@@ -118,10 +118,19 @@ export const DeviceBOMTree: React.FC = () => {
     { value: 'generic_component', label: '通用电气部件 (generic_component)' },
   ];
 
+  // All categories present in devices plus defaults
+  const allCategories = useMemo(() => {
+    const set = new Set<string>(CATEGORIES);
+    devices.forEach((d) => {
+      if (d.category) set.add(d.category);
+    });
+    return Array.from(set);
+  }, [devices]);
+
   // Group devices by category
   const categorizedDevices = useMemo(() => {
     const map = new Map<string, DeviceNode[]>();
-    CATEGORIES.forEach((cat) => map.set(cat, []));
+    allCategories.forEach((cat) => map.set(cat, []));
 
     devices.forEach((d) => {
       const cat = d.category || '储能变流与电能变换系统';
@@ -130,7 +139,7 @@ export const DeviceBOMTree: React.FC = () => {
     });
 
     return map;
-  }, [devices]);
+  }, [devices, allCategories]);
 
   // Children mapping for nested component tree
   const childrenMap = useMemo(() => {
@@ -203,7 +212,7 @@ export const DeviceBOMTree: React.FC = () => {
   };
 
   // Render a single device node (and its subcomponents if parent)
-  const renderDeviceItem = (device: DeviceNode, depth = 0) => {
+  const renderDeviceItem = (device: DeviceNode, depth = 0, index = 0) => {
     const children = childrenMap.get(device.id) || [];
     const hasChildren = children.length > 0;
     const isExpanded = !!expandedDeviceIds[device.id];
@@ -221,7 +230,7 @@ export const DeviceBOMTree: React.FC = () => {
     if (!matchesSearch && searchFilter) return null;
 
     return (
-      <div key={device.id} className="select-none">
+      <div key={`${device.id}-${depth}-${index}`} className="select-none">
         <div
           onClick={() => setSelectedDeviceId(device.id)}
           className={`flex items-center justify-between py-2 px-2.5 rounded-xl cursor-pointer transition text-xs group ${
@@ -287,7 +296,7 @@ export const DeviceBOMTree: React.FC = () => {
 
         {hasChildren && isExpanded && (
           <div className="border-l border-slate-200 ml-4 pl-1 my-0.5 space-y-0.5">
-            {children.map((child) => renderDeviceItem(child, depth + 1))}
+            {children.map((child, cIdx) => renderDeviceItem(child, depth + 1, cIdx))}
           </div>
         )}
       </div>
@@ -361,7 +370,7 @@ export const DeviceBOMTree: React.FC = () => {
 
           {/* Tree Scroll Area: Categorized Groups */}
           <div className="flex-1 overflow-y-auto pr-1 space-y-3 border-t border-slate-100 pt-2.5">
-            {CATEGORIES.map((category) => {
+            {allCategories.map((category) => {
               const catDevs = (categorizedDevices.get(category) || []).filter(
                 (d) => !d.parent_id // Show root devices in category, child devices expand under them
               );
@@ -392,7 +401,7 @@ export const DeviceBOMTree: React.FC = () => {
                   {/* Category Device List */}
                   {isCatExpanded && (
                     <div className="space-y-0.5 pl-1.5 pt-0.5">
-                      {catDevs.map((dev) => renderDeviceItem(dev, 0))}
+                      {catDevs.map((dev, idx) => renderDeviceItem(dev, 0, idx))}
                     </div>
                   )}
                 </div>
@@ -511,8 +520,8 @@ export const DeviceBOMTree: React.FC = () => {
                     <option value="">（独立顶级设备型号，如整机/舱体）</option>
                     {devices
                       .filter((d) => d.id !== selectedDevice.id)
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
+                      .map((d, idx) => (
+                        <option key={`${d.id}-${idx}`} value={d.id}>
                           {d.name} ({d.version ? `${d.version} - ` : ''}{d.id})
                         </option>
                       ))}
@@ -578,11 +587,11 @@ export const DeviceBOMTree: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {(formData.telemetry_metric_codes || []).map((mCode) => {
+                  {(formData.telemetry_metric_codes || []).map((mCode, idx) => {
                     const ind = indicators.find((item) => item.code === mCode || item.id === mCode);
                     return (
                       <div
-                        key={mCode}
+                        key={`${mCode}-${idx}`}
                         className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 text-xs"
                       >
                         <span className="font-semibold">{ind ? ind.name : mCode}</span>
@@ -640,11 +649,11 @@ export const DeviceBOMTree: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {(formData.associated_fault_ids || []).map((fid) => {
+                  {(formData.associated_fault_ids || []).map((fid, idx) => {
                     const f = faults.find((item) => item.id === fid);
                     return (
                       <div
-                        key={fid}
+                        key={`${fid}-${idx}`}
                         className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 text-xs"
                       >
                         <span>{f ? f.name : fid}</span>
@@ -738,11 +747,11 @@ export const DeviceBOMTree: React.FC = () => {
               </button>
             </div>
             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {indicators.map((ind) => {
+              {indicators.map((ind, idx) => {
                 const isSelected = (formData.telemetry_metric_codes || []).includes(ind.code);
                 return (
                   <div
-                    key={ind.id}
+                    key={`${ind.id}-${idx}`}
                     onClick={() => {
                       const current = formData.telemetry_metric_codes || [];
                       const next = isSelected
@@ -805,11 +814,11 @@ export const DeviceBOMTree: React.FC = () => {
               </button>
             </div>
             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {faults.map((f) => {
+              {faults.map((f, idx) => {
                 const isSelected = (formData.associated_fault_ids || []).includes(f.id);
                 return (
                   <div
-                    key={f.id}
+                    key={`${f.id}-${idx}`}
                     onClick={() => {
                       const current = formData.associated_fault_ids || [];
                       const next = isSelected

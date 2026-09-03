@@ -489,14 +489,14 @@ export const GlobalNetworkGraph: React.FC<{
             </svg>
 
             {/* Interactive Graph Nodes */}
-            {graphNodes.map((node) => {
+            {graphNodes.map((node, idx) => {
               const isSelected = selectedNode?.id === node.id;
               const isDevice = node.type === 'device';
               const sev = node.severity ? SEVERITY_COLORS[node.severity] : SEVERITY_COLORS.high;
 
               return (
                 <div
-                  key={node.id}
+                  key={`${node.id}-${idx}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedNode({
