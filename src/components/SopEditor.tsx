@@ -503,20 +503,20 @@ export const SopEditor: React.FC = () => {
         </button>
 
         {showYamlPreview && (
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <div className="flex justify-end pb-2 mb-2 border-b border-slate-200">
+          <div className="p-4 border-t border-slate-200 bg-white">
+            <div className="flex justify-end pb-2 mb-2 border-b border-slate-100">
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(yamlOutput);
                   showToast('已复制 YAML 至剪贴板', 'success');
                 }}
-                className="flex items-center space-x-1 px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-xs transition text-xs"
+                className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-xs transition text-xs"
               >
                 <Copy className="w-3 h-3" />
                 <span>复制代码</span>
               </button>
             </div>
-            <pre className="text-slate-200 font-mono text-xs overflow-x-auto p-3.5 rounded-lg bg-slate-900 leading-relaxed max-h-80">
+            <pre className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs overflow-x-auto leading-relaxed max-h-96 select-text whitespace-pre">
               {yamlOutput}
             </pre>
           </div>

@@ -1470,21 +1470,21 @@ export const FaultEditor: React.FC = () => {
         </button>
 
         {showYamlPreview && (
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 text-[11px] text-slate-500">
+          <div className="p-4 border-t border-slate-200 bg-white">
+            <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 text-[11px] text-slate-500">
               <span>与 DiagnosGraph 诊断引擎 YAML 字段 100% 对齐</span>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(yamlOutput);
                   showToast('已复制 YAML 至剪贴板', 'success');
                 }}
-                className="flex items-center space-x-1 px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-xs transition"
+                className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-xs transition"
               >
                 <Copy className="w-3 h-3" />
                 <span>复制代码</span>
               </button>
             </div>
-            <pre className="text-slate-800 font-mono text-xs overflow-x-auto p-3.5 rounded-lg bg-slate-900 text-slate-200 leading-relaxed max-h-80">
+            <pre className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs overflow-x-auto leading-relaxed max-h-96 select-text whitespace-pre">
               {yamlOutput}
             </pre>
           </div>
