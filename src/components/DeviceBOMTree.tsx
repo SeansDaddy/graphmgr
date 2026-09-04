@@ -16,7 +16,6 @@ import {
   X,
   ExternalLink,
   Cpu,
-  Gauge,
   Tag,
   Boxes,
   CheckCircle2,
@@ -27,7 +26,6 @@ export const DeviceBOMTree: React.FC = () => {
   const {
     devices,
     faults,
-    indicators,
     selectedDeviceId,
     setSelectedDeviceId,
     addDevice,
@@ -35,7 +33,6 @@ export const DeviceBOMTree: React.FC = () => {
     deleteDevice,
     showToast,
     openFaultEditor,
-    openIndicatorEditor,
   } = useApp();
 
   const [searchFilter, setSearchFilter] = useState('');
@@ -56,9 +53,8 @@ export const DeviceBOMTree: React.FC = () => {
     'DEV-BMS-MASTER': true,
   });
 
-  // Modals for picking faults/telemetry metrics
+  // Modals for picking faults
   const [showFaultPicker, setShowFaultPicker] = useState(false);
-  const [showMetricPicker, setShowMetricPicker] = useState(false);
   const [showYamlModal, setShowYamlModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -313,7 +309,7 @@ export const DeviceBOMTree: React.FC = () => {
             <span>设备 BOM 型号与版本管理</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            按设备系统分类与规格版本管理电站设备资产，挂载时序指标与故障模式（不绑定具体物理电站）
+            按设备系统分类与规格版本管理电站设备资产，维护设备树层级与关联故障模式（不绑定具体物理电站）
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -568,68 +564,6 @@ export const DeviceBOMTree: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section: Associated Telemetry Indicators (from Indicator Library) */}
-              <div className="pt-4 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center space-x-2">
-                    <Gauge className="w-4 h-4 text-slate-700" />
-                    <span className="text-xs font-bold text-slate-800">
-                      采集时序指标 (Telemetry Metrics: {formData.telemetry_metric_codes?.length || 0})
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setShowMetricPicker(true)}
-                    className="text-xs text-slate-900 hover:text-slate-700 font-medium flex items-center space-x-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>挂载指标</span>
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {(formData.telemetry_metric_codes || []).map((mCode, idx) => {
-                    const ind = indicators.find((item) => item.code === mCode || item.id === mCode);
-                    return (
-                      <div
-                        key={`${mCode}-${idx}`}
-                        className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 text-xs"
-                      >
-                        <span className="font-semibold">{ind ? ind.name : mCode}</span>
-                        <span className="text-[10px] font-mono text-slate-500">({mCode})</span>
-                        {ind && (
-                          <button
-                            onClick={() => openIndicatorEditor(ind.id)}
-                            className="p-0.5 text-slate-400 hover:text-slate-800"
-                            title="前往指标库查看"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setFormData({
-                              ...formData,
-                              telemetry_metric_codes: (
-                                formData.telemetry_metric_codes || []
-                              ).filter((c) => c !== mCode),
-                            });
-                          }}
-                          className="text-slate-400 hover:text-rose-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {(!formData.telemetry_metric_codes ||
-                    formData.telemetry_metric_codes.length === 0) && (
-                    <span className="text-xs text-slate-400 italic">
-                      暂未显式挂载指标（将默认继承设备类型支持的所有遥测指标）
-                    </span>
-                  )}
-                </div>
-              </div>
-
               {/* Section: Associated Faults */}
               <div className="pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-2.5">
@@ -729,76 +663,6 @@ export const DeviceBOMTree: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Metric Picker Modal */}
-      {showMetricPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-xl text-slate-800">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
-                <Gauge className="w-4 h-4 text-slate-800" />
-                <span>选择设备支持的时序指标 (来自指标库)</span>
-              </h3>
-              <button
-                onClick={() => setShowMetricPicker(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-              {indicators.map((ind, idx) => {
-                const isSelected = (formData.telemetry_metric_codes || []).includes(ind.code);
-                return (
-                  <div
-                    key={`${ind.id}-${idx}`}
-                    onClick={() => {
-                      const current = formData.telemetry_metric_codes || [];
-                      const next = isSelected
-                        ? current.filter((c) => c !== ind.code)
-                        : [...current, ind.code];
-                      setFormData({ ...formData, telemetry_metric_codes: next });
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer text-xs transition ${
-                      isSelected
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold">{ind.name}</div>
-                      <div
-                        className={`text-[10px] mt-0.5 font-mono ${
-                          isSelected ? 'text-slate-300' : 'text-slate-400'
-                        }`}
-                      >
-                        {ind.code} • 域: {ind.domain} • 单位: {ind.unit}
-                      </div>
-                    </div>
-                    <div
-                      className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
-                        isSelected
-                          ? 'bg-white text-slate-900 border-white font-bold'
-                          : 'border-slate-300'
-                      }`}
-                    >
-                      {isSelected && '✓'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-5 flex justify-end">
-              <button
-                onClick={() => setShowMetricPicker(false)}
-                className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs"
-              >
-                完成选择
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Fault Picker Modal */}
       {showFaultPicker && (

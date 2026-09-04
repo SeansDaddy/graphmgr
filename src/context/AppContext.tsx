@@ -13,6 +13,7 @@ import {
   DeviceConfigurationProfile,
   EventSequencePattern,
   SoeLogEvent,
+  Symptom,
 } from '../types';
 import {
   INITIAL_DEVICES,

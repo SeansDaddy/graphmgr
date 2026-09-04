@@ -369,7 +369,24 @@ export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
     const newNodesToAdd: PropagationNodePos[] = [];
 
     symptoms.forEach((sym, idx) => {
-      const label = sym.metric_name || `指标 ${sym.metric_code}`;
+      const sType = sym.type || 'indicator';
+      let symDetail = '';
+      let label = sym.metric_name || `特征项 ${idx + 1}`;
+
+      if (sType === 'alarm') {
+        label = sym.alarm_name || sym.metric_name || `告警 ${sym.alarm_code}`;
+        symDetail = `[告警] ${sym.alarm_level?.toUpperCase()} · ${sym.trigger_condition || '触发'}`;
+      } else if (sType === 'parameter') {
+        label = sym.parameter_name || sym.metric_name || `参数 ${sym.parameter_code}`;
+        symDetail = `[参数] ${sym.condition_operator || '=='} ${sym.abnormal_value || '异常值'}`;
+      } else if (sType === 'event_sequence') {
+        label = sym.sequence_name || sym.metric_name || `日志时序 ${sym.sequence_id || idx + 1}`;
+        symDetail = `[日志] ${sym.log_source}: ${sym.keywords} (${sym.stat_condition || '统计满足'})`;
+      } else {
+        label = sym.metric_name || `指标 ${sym.metric_code}`;
+        symDetail = `${sym.metric_name} (${sym.direction === 'up' ? '持续升高' : sym.direction === 'down' ? '骤降' : '异常波动'})`;
+      }
+
       if (!existingLabels.has(label)) {
         newNodesToAdd.push({
           id: `sym-node-${sym.id}-${idx}`,
@@ -377,7 +394,7 @@ export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
           type: 'symptom',
           device_type: sym.device_type || 'other',
           device_name: sym.device_name || getDeviceTypeLabel(sym.device_type),
-          symptom_name: `${sym.metric_name} (${sym.direction === 'up' ? '升高' : sym.direction === 'down' ? '骤降' : '异常'})`,
+          symptom_name: symDetail,
           x: 260 + (idx % 3) * 90,
           y: 70 + idx * 100,
         });
