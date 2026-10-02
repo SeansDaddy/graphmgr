@@ -299,7 +299,7 @@ export const SopEditor: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={formData.escalation?.target_role || '高级储能运维专家'}
+                value={formData.escalation?.target_role || '高级能源运维专家'}
                 onChange={(e) =>
                   setFormData({
                     ...formData,

@@ -215,7 +215,7 @@ export const VersionManager: React.FC = () => {
           <div className="space-y-3 flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between text-xs text-slate-500 flex-shrink-0">
               <span className="truncate mr-2 font-medium">
-                {activeYamlTab === 'faults' && '包含全部储能故障模式、诱因机理、症状指标与传播链'}
+                {activeYamlTab === 'faults' && '包含全部能源领域故障模式、诱因机理、症状指标与传播链'}
                 {activeYamlTab === 'devices' && '包含全站 5 级 BOM 设备拓扑树及关联关系'}
                 {activeYamlTab === 'procedures' && '包含应急处置 SOP 作业指导书与自动升级规则'}
                 {activeYamlTab === 'alarms' && '包含标准告警类型与触发阈值映射'}

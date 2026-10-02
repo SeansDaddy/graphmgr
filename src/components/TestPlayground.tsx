@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { TEST_SCENARIOS } from '../data/initialData';
 import { runDiagnosticSimulation } from '../utils/diagnosticEngine';
+import { Symptom5DInlineSelector } from './Symptom5DEditor';
 import {
   FlaskConical,
   Play,
@@ -297,25 +298,20 @@ export const TestPlayground: React.FC = () => {
                       </label>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={sym.current_value}
-                        onChange={(e) => handleUpdateSymptom(idx, { current_value: e.target.value })}
-                        placeholder="实测值"
-                        className="flex-1 px-2 py-1 rounded bg-white border border-slate-200 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
+                    <div className="space-y-1.5">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={sym.current_value}
+                          onChange={(e) => handleUpdateSymptom(idx, { current_value: e.target.value })}
+                          placeholder="实测值 (如: 38.5 °C)"
+                          className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
+                        />
+                      </div>
+                      <Symptom5DInlineSelector
+                        symptom={sym as any}
+                        onChange={(updates) => handleUpdateSymptom(idx, updates)}
                       />
-                      <select
-                        value={sym.direction || 'up'}
-                        onChange={(e) =>
-                          handleUpdateSymptom(idx, { direction: e.target.value as any })
-                        }
-                        className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
-                      >
-                        <option value="up">↑ 持续上升</option>
-                        <option value="down">↓ 骤降</option>
-                        <option value="fluctuate">~ 波动</option>
-                      </select>
                     </div>
                   </div>
                 ))}

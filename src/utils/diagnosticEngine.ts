@@ -5,6 +5,7 @@ import {
   AlarmType,
   DiagnosticSimulationInput,
   DiagnosticSimulationResult,
+  resolveSymptom5D,
 } from '../types';
 
 /**
@@ -107,9 +108,14 @@ export function runDiagnosticSimulation(
 
       if (inputSym && inputSym.is_abnormal) {
         matchCount++;
+        const s5dFs = resolveSymptom5D(fs);
+        const s5dIn = resolveSymptom5D(inputSym as any);
+        if (s5dFs.trend === s5dIn.trend) score += 2;
+        if (s5dFs.severity === s5dIn.severity) score += 2;
+
         matchedSymptoms.push({
           metric_name: fs.metric_name,
-          current_value: inputSym.current_value,
+          current_value: `${inputSym.current_value} [${s5dIn.trendObj.symbol} ${s5dIn.contextualSeverity}]`,
           normal_range: fs.normal_range,
           matched: true,
         });
@@ -176,7 +182,7 @@ export function runDiagnosticSimulation(
     hierarchyNames.push(primaryFaultDevice.name);
   }
 
-  const exploredPath = hierarchyNames.length > 0 ? hierarchyNames : ['储能电站 A', 'PCS 1', '主变压器', '冷却泵'];
+  const exploredPath = hierarchyNames.length > 0 ? hierarchyNames : ['能源电站 A', 'PCS 1', '主变压器', '冷却泵'];
 
   // Retrieve matching recovery procedures
   const matchedSopIds = topMatch.fault.associated_procedure_ids || [];

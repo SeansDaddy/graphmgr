@@ -24,6 +24,7 @@ import { GlobalNetworkGraph } from './components/GlobalNetworkGraph';
 import { VersionManager } from './components/VersionManager';
 import { ImportModal } from './components/ImportModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
   const { activeTab } = useApp();
@@ -40,37 +41,39 @@ const AppContent: React.FC = () => {
 
       {/* Main Container with fluid responsive width */}
       <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 pt-6 sm:pt-8">
-        {activeTab === 'workbench' && (
-          <Workbench onOpenImportModal={() => setIsImportOpen(true)} />
-        )}
+        <ErrorBoundary fallbackTitle="页面视图加载异常">
+          {activeTab === 'workbench' && (
+            <Workbench onOpenImportModal={() => setIsImportOpen(true)} />
+          )}
 
-        {activeTab === 'devices' && <DeviceBOMTree />}
+          {activeTab === 'devices' && <DeviceBOMTree />}
 
-        {activeTab === 'indicators' && <IndicatorLibrary />}
+          {activeTab === 'indicators' && <IndicatorLibrary />}
 
-        {activeTab === 'parameters' && <ParameterLibrary />}
+          {activeTab === 'parameters' && <ParameterLibrary />}
 
-        {activeTab === 'parameter-editor' && <ParameterEditor />}
+          {activeTab === 'parameter-editor' && <ParameterEditor />}
 
-        {activeTab === 'static-configs' && <StaticConfigManager />}
+          {activeTab === 'static-configs' && <StaticConfigManager />}
 
-        {activeTab === 'event-logs' && <EventLogSequence />}
+          {activeTab === 'event-logs' && <EventLogSequence />}
 
-        {activeTab === 'faults' && <FaultList />}
+          {activeTab === 'faults' && <FaultList />}
 
-        {activeTab === 'fault-editor' && <FaultEditor />}
+          {activeTab === 'fault-editor' && <FaultEditor />}
 
-        {activeTab === 'procedures' && <SopList />}
+          {activeTab === 'procedures' && <SopList />}
 
-        {activeTab === 'sop-editor' && <SopEditor />}
+          {activeTab === 'sop-editor' && <SopEditor />}
 
-        {activeTab === 'alarms' && <AlarmManager />}
+          {activeTab === 'alarms' && <AlarmManager />}
 
-        {activeTab === 'test-playground' && <TestPlayground />}
+          {activeTab === 'test-playground' && <TestPlayground />}
 
-        {activeTab === 'network' && <FaultList />}
+          {activeTab === 'network' && <FaultList />}
 
-        {activeTab === 'version-manager' && <VersionManager />}
+          {activeTab === 'version-manager' && <VersionManager />}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
@@ -80,7 +83,7 @@ const AppContent: React.FC = () => {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             <span className="font-bold text-slate-800">DiagnosGraph Studio</span>
             <span className="text-slate-400">•</span>
-            <span className="text-slate-600">储能领域专家知识建模与资产沉淀工作台</span>
+            <span className="text-slate-600">能源领域专家知识建模与资产沉淀工作台</span>
           </div>
           <div className="flex items-center space-x-4 text-sm text-slate-500">
             <span>所见即所得 YAML</span>

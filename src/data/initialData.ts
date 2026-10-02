@@ -676,7 +676,7 @@ export const INITIAL_FAULTS: FaultPattern[] = [
     status: 'draft',
     review_status: 'needs_review',
     updated_at: '2026-09-02 09:20',
-    author: '张工 (高级储能运维专家)',
+    author: '张工 (高级能源运维专家)',
     tags: ['液冷', '温控', '机械部件'],
   },
   {
@@ -2179,8 +2179,8 @@ export const INITIAL_VERSION_SNAPSHOTS: VersionSnapshot[] = [
     id: 'V-20260901-01',
     version: 'v1.0.4-release',
     timestamp: '2026-09-01 18:00',
-    author: '张工 (储能首席架构师)',
-    message: '正式发布：华东1号电站 100MW/200MWh 基础故障图谱与 SOP',
+    author: '张工 (能源首席架构师)',
+    message: '正式发布：能源领域通用基础故障图谱与 SOP',
     stats: {
       devices: 24,
       faults: 15,
@@ -2219,7 +2219,7 @@ export const TEST_SCENARIOS = [
   {
     id: 'SCENARIO-01',
     name: '冷却泵停转导致电池升温（典型案例）',
-    description: '储能电站A 主变侧冷却泵发生跳闸停机，伴随流量断流与电池温升',
+    description: '能源电站A 主变侧冷却泵发生跳闸停机，伴随流量断流与电池温升',
     input: {
       source_device_id: 'DEV-COOL-PUMP',
       alarm_type_id: 'ALM-01',

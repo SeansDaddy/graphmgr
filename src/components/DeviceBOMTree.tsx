@@ -669,7 +669,7 @@ export const DeviceBOMTree: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-xl text-slate-800">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="text-sm font-bold text-slate-900">选择关联的储能故障模式</h3>
+              <h3 className="text-sm font-bold text-slate-900">选择关联的能源领域故障模式</h3>
               <button
                 onClick={() => setShowFaultPicker(false)}
                 className="text-slate-400 hover:text-slate-600"

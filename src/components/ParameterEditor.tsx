@@ -407,7 +407,7 @@ updated_at: "${formData.updated_at}"
                 rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="详细说明此参数的作用机理、标准设定原则、在储能系统运行中的重要性..."
+                placeholder="详细说明此参数的作用机理、标准设定原则、在能源系统运行中的重要性..."
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-xs leading-relaxed text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
@@ -694,7 +694,7 @@ updated_at: "${formData.updated_at}"
                 <div>
                   <div className="text-xs font-bold text-slate-800">默认开关状态</div>
                   <div className="text-xs text-slate-500 mt-0.5">
-                    储能电站标准基准出厂默认是开启还是禁用
+                    能源站系统标准基准出厂默认是开启还是禁用
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

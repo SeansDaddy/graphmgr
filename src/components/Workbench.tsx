@@ -53,13 +53,13 @@ export const Workbench: React.FC<{
           <div className="space-y-2.5">
             <div className="flex items-center space-x-2 text-slate-600 text-sm font-semibold tracking-wide">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span>华东 1 号集中式储能电站 (100MW/200MWh) 知识库</span>
+              <span>能源领域故障知识库</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
               {getGreeting()}，张工
             </h1>
             <p className="text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
-              欢迎回到 DiagnosGraph 领域专家建模工作台。无需编写代码与 YAML，将储能机理与运维经验沉淀为高质量结构化资产。
+              欢迎回到 DiagnosGraph 能源领域专家建模工作台。无需编写代码与 YAML，将能源领域故障机理与运维经验沉淀为高质量结构化资产。
             </p>
           </div>
 
@@ -282,7 +282,7 @@ export const Workbench: React.FC<{
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
           <button
-            onClick={() => addDevice({ name: '新储能设备节点', parent_id: 'ESS-01' })}
+            onClick={() => addDevice({ name: '新能源设备节点', parent_id: 'ESS-01' })}
             className="flex flex-col items-center justify-center p-6 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 group transition text-center"
           >
             <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center mb-3 transition shadow-xs group-hover:bg-slate-900 group-hover:text-white">

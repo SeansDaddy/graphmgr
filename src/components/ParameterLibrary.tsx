@@ -256,7 +256,7 @@ status: "${param.status}"
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  储能系统设备静态参数建模、安全基线约束定义与故障反向因果追溯
+                  能源系统设备静态参数建模、安全基线约束定义与故障反向因果追溯
                 </p>
               </div>
             </div>

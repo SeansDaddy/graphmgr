@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { SeverityLevel } from '../types';
+import { SeverityLevel, resolveSymptomSingleFeature } from '../types';
 import { GlobalNetworkGraph } from './GlobalNetworkGraph';
 import {
   AlertOctagon,
@@ -63,10 +63,10 @@ export const FaultList: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
             <AlertOctagon className="w-5 h-5 text-slate-800" />
-            <span>储能故障建模与图谱中心</span>
+            <span>能源领域故障建模与图谱中心</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            沉淀储能电站专家故障机理、异常特征指标与全网传播图谱，支持单体建模与全局拓扑全景查看
+            沉淀能源领域专家故障机理、异常特征指标与全网传播图谱，支持单体建模与全局拓扑全景查看
           </p>
         </div>
 
@@ -218,19 +218,83 @@ export const FaultList: React.FC = () => {
                           <span>特征指标 ({f.symptoms?.length || 0} 项)</span>
                           <span>传播演变 ({f.propagation_chain?.length || 0} 段)</span>
                         </div>
-                        {f.symptoms?.[0] ? (
-                          <div className="text-slate-700 truncate text-[11px] flex items-center space-x-1">
-                            {f.symptoms[0].device_name && (
-                              <span className="font-semibold text-slate-900">
-                                [{f.symptoms[0].device_name}]
+                        {f.symptoms?.[0] ? (() => {
+                          const firstSym = f.symptoms[0];
+                          const sType = firstSym.type || 'indicator';
+
+                          if (sType === 'alarm') {
+                            return (
+                              <div className="text-slate-700 text-[11px] flex items-center justify-between gap-1">
+                                <div className="flex items-center space-x-1 truncate min-w-0">
+                                  {firstSym.device_name && (
+                                    <span className="font-semibold text-slate-900 shrink-0">
+                                      [{firstSym.device_name}]
+                                    </span>
+                                  )}
+                                  <span className="truncate">{firstSym.alarm_name || firstSym.metric_name}</span>
+                                </div>
+                                <span className="font-mono px-1.5 py-0.5 rounded text-[10px] shrink-0 font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                                  [告警] {firstSym.alarm_code || 'ALARM'}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          if (sType === 'parameter') {
+                            return (
+                              <div className="text-slate-700 text-[11px] flex items-center justify-between gap-1">
+                                <div className="flex items-center space-x-1 truncate min-w-0">
+                                  {firstSym.device_name && (
+                                    <span className="font-semibold text-slate-900 shrink-0">
+                                      [{firstSym.device_name}]
+                                    </span>
+                                  )}
+                                  <span className="truncate">{firstSym.parameter_name || firstSym.metric_name}</span>
+                                </div>
+                                <span className="font-mono px-1.5 py-0.5 rounded text-[10px] shrink-0 font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                  [参数] {firstSym.condition_operator || '=='} {String(firstSym.abnormal_value || '')}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          if (sType === 'event_sequence') {
+                            return (
+                              <div className="text-slate-700 text-[11px] flex items-center justify-between gap-1">
+                                <div className="flex items-center space-x-1 truncate min-w-0">
+                                  {firstSym.device_name && (
+                                    <span className="font-semibold text-slate-900 shrink-0">
+                                      [{firstSym.device_name}]
+                                    </span>
+                                  )}
+                                  <span className="truncate">{firstSym.sequence_name || firstSym.metric_name}</span>
+                                </div>
+                                <span className="font-mono px-1.5 py-0.5 rounded text-[10px] shrink-0 font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 truncate max-w-[120px]">
+                                  [日志] {firstSym.log_source || 'LOG'}
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          const feat = resolveSymptomSingleFeature(firstSym);
+                          return (
+                            <div className="text-slate-700 text-[11px] flex items-center justify-between gap-1">
+                              <div className="flex items-center space-x-1 truncate min-w-0">
+                                {firstSym.device_name && (
+                                  <span className="font-semibold text-slate-900 shrink-0">
+                                    [{firstSym.device_name}]
+                                  </span>
+                                )}
+                                <span className="truncate">{firstSym.metric_name}</span>
+                              </div>
+                              <span className={`font-mono px-1.5 py-0.5 rounded text-[10px] shrink-0 font-medium flex items-center space-x-1 ${feat.badgeClass}`} title={`${feat.dimensionName}: ${feat.name} (${feat.description})`}>
+                                <span>{feat.symbol}</span>
+                                <span>[{feat.dimensionShortName}]</span>
+                                <span className="font-sans font-semibold text-[10px]">{feat.name}</span>
                               </span>
-                            )}
-                            <span className="truncate">{f.symptoms[0].metric_name}</span>
-                            <span className="font-mono text-slate-500 shrink-0">
-                              ({f.symptoms[0].direction === 'up' ? '↑' : f.symptoms[0].direction === 'down' ? '↓' : '~'})
-                            </span>
-                          </div>
-                        ) : (
+                            </div>
+                          );
+                        })() : (
                           <div className="text-slate-400 text-[11px]">暂未配置特征</div>
                         )}
 

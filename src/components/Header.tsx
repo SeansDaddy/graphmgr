@@ -52,10 +52,10 @@ export const Header: React.FC<{
     { id: 'devices', label: '设备 BOM', icon: Layers, badge: devices.length },
     { id: 'indicators', label: '指标库', icon: Gauge, badge: indicators.length },
     { id: 'parameters', label: '配置参数库', icon: SlidersHorizontal, badge: parameters.length },
+    { id: 'alarms', label: '告警接入', icon: BellRing, badge: alarms.length },
     { id: 'event-logs', label: '事件序列', icon: History, badge: eventPatterns.length },
     { id: 'faults', label: '故障建模', icon: AlertOctagon, badge: faults.length },
     { id: 'procedures', label: '处置 SOP', icon: FileText, badge: sops.length },
-    { id: 'alarms', label: '告警接入', icon: BellRing, badge: alarms.length },
     { id: 'test-playground', label: '测试场', icon: FlaskConical, isHot: true },
     { id: 'version-manager', label: '版本与 YAML', icon: Archive },
   ];
@@ -102,7 +102,7 @@ export const Header: React.FC<{
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium hidden sm:block whitespace-nowrap">
-                  储能领域专家建模工作台
+                  能源领域专家建模工作台
                 </p>
               </div>
             </button>
@@ -201,7 +201,7 @@ export const Header: React.FC<{
             <button
               onClick={() => setShowConfirmReset(true)}
               className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition"
-              title="重置为储能电站示例知识库"
+              title="重置为能源领域示例知识库"
             >
               <RotateCcw className="w-4.5 h-4.5" />
             </button>
@@ -258,7 +258,7 @@ export const Header: React.FC<{
               <h3 className="text-lg font-bold text-slate-900">确认重置知识库示例数据？</h3>
             </div>
             <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              此操作将恢复包含 24 个设备 BOM 节点、17 个储能故障模式、17 个应急处置 SOP 与 8 类告警的标准示例知识库，您当前未导出的临时草稿将被替换。
+              此操作将恢复包含 24 个设备 BOM 节点、17 个能源领域故障模式、17 个应急处置 SOP 与 8 类告警的标准示例知识库，您当前未导出的临时草稿将被替换。
             </p>
             <div className="flex justify-end space-x-3">
               <button

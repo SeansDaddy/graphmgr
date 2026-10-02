@@ -10,6 +10,7 @@ import {
   DEVICE_TYPE_OPTIONS,
   EventSequencePattern,
 } from '../types';
+import { Symptom5DInlineSelector, Symptom5DBadge } from './Symptom5DEditor';
 import { PropagationCanvas } from './PropagationCanvas';
 import {
   AlertOctagon,
@@ -150,18 +151,26 @@ export const FaultEditor: React.FC = () => {
     let newSymptom: FaultSymptom;
 
     if (type === 'alarm') {
-      const defaultAlarm = alarms[0];
+      const defaultAlarm = (alarms && alarms[0]) || {
+        id: 'ALM-01',
+        code: 'ALM_TEMP_HIGH',
+        name: '过温与温升异常告警',
+        severity: 'high',
+        default_threshold: '35°C',
+        unit: '°C',
+        description: '变压器油温、PCS模块或电池舱电芯温度超过设定报警阈值',
+      };
       newSymptom = {
         id: `SYM-ALM-${Date.now()}-${nextIdx}`,
         type: 'alarm',
         device_type: preset?.device_type || 'cabin',
         device_name: preset?.device_name || '安全监控与告警单元',
-        metric_name: preset?.alarm_name || defaultAlarm?.name || `系统告警特征 ${nextIdx}`,
-        alarm_id: preset?.alarm_id || defaultAlarm?.id || 'ALM_01',
-        alarm_code: preset?.alarm_code || defaultAlarm?.code || 'ALM_PUMP_FLOW_LOW',
-        alarm_name: preset?.alarm_name || defaultAlarm?.name || '冷却泵低流量告警',
-        alarm_level: preset?.alarm_level || defaultAlarm?.level || 'high',
-        trigger_condition: preset?.trigger_condition || '连续低于 50 L/min 超过 3s',
+        metric_name: preset?.alarm_name || preset?.metric_name || defaultAlarm?.name || `系统告警特征 ${nextIdx}`,
+        alarm_id: preset?.alarm_id || defaultAlarm?.id || 'ALM-01',
+        alarm_code: preset?.alarm_code || defaultAlarm?.code || 'ALM_TEMP_HIGH',
+        alarm_name: preset?.alarm_name || defaultAlarm?.name || '过温与温升异常告警',
+        alarm_level: preset?.alarm_level || (defaultAlarm as any)?.severity || (defaultAlarm as any)?.level || 'high',
+        trigger_condition: preset?.trigger_condition || (defaultAlarm as any)?.description || '连续超出阈值超过 3s',
         time_window: preset?.time_window || '0-5min',
         notes: preset?.notes || '',
       };
@@ -213,6 +222,11 @@ export const FaultEditor: React.FC = () => {
         indicator_id: preset?.indicator_id || defaultInd?.id || 'coolant_flow',
         metric_code: preset?.metric_code || defaultInd?.code || 'coolant_flow',
         metric_name: preset?.metric_name || defaultInd?.name || `监测参数指标 ${nextIdx}`,
+        trend: preset?.trend || 'UP',
+        rate: preset?.rate || 'GRADUAL',
+        severity_relation: preset?.severity_relation || 'OVER_LIMIT',
+        duration_pattern: preset?.duration_pattern || 'SUSTAINED',
+        volatility: preset?.volatility || 'STABLE',
         direction: preset?.direction || 'up',
         time_window: preset?.time_window || '0-5min',
         normal_range: preset?.normal_range || defaultInd?.normal_range || '20-40°C',
@@ -248,15 +262,15 @@ export const FaultEditor: React.FC = () => {
   };
 
   const handleSelectAlarmForSymptom = (symptomId: string, alarmIdOrCode: string) => {
-    const selectedAlarm = alarms.find((a) => a.id === alarmIdOrCode || a.code === alarmIdOrCode);
+    const selectedAlarm = (alarms || []).find((a) => a && (a.id === alarmIdOrCode || a.code === alarmIdOrCode));
     if (!selectedAlarm) return;
     handleUpdateSymptom(symptomId, {
       alarm_id: selectedAlarm.id,
       alarm_code: selectedAlarm.code,
       alarm_name: selectedAlarm.name,
       metric_name: selectedAlarm.name,
-      alarm_level: selectedAlarm.level,
-      trigger_condition: selectedAlarm.description || selectedAlarm.typical_threshold || '',
+      alarm_level: (selectedAlarm as any)?.severity || (selectedAlarm as any)?.level || 'high',
+      trigger_condition: selectedAlarm.description || (selectedAlarm as any)?.default_threshold || '',
     });
   };
 
@@ -269,9 +283,9 @@ export const FaultEditor: React.FC = () => {
       parameter_name: selectedParam.name,
       metric_name: selectedParam.name,
       baseline_value: selectedParam.default_value,
-      condition_operator: selectedParam.data_type === 'enum' || selectedParam.data_type === 'string' ? '==' : '!=',
-      abnormal_value: selectedParam.data_type === 'enum' && selectedParam.enum_values?.length
-        ? selectedParam.enum_values.find((v) => v !== selectedParam.default_value) || 'manual'
+      condition_operator: selectedParam.param_type === 'enum' || selectedParam.param_type === 'string' ? '==' : '!=',
+      abnormal_value: selectedParam.param_type === 'enum' && selectedParam.enum_values?.length
+        ? selectedParam.enum_values.find((v) => v.key !== String(selectedParam.default_value))?.key || 'manual'
         : 'abnormal',
     });
   };
@@ -296,15 +310,23 @@ export const FaultEditor: React.FC = () => {
     const symptom = (formData.symptoms || []).find((s) => s.id === symptomId);
     if (!symptom || (symptom.type || 'indicator') === newType) return;
     if (newType === 'alarm') {
-      const defaultAlarm = alarms[0];
+      const defaultAlarm = (alarms && alarms[0]) || {
+        id: 'ALM-01',
+        code: 'ALM_TEMP_HIGH',
+        name: '过温与温升异常告警',
+        severity: 'high',
+        default_threshold: '35°C',
+        unit: '°C',
+        description: '变压器油温、PCS模块或电池舱电芯温度超过设定报警阈值',
+      };
       handleUpdateSymptom(symptomId, {
         type: 'alarm',
-        alarm_id: defaultAlarm?.id || 'ALM_01',
-        alarm_code: defaultAlarm?.code || 'ALM_PUMP_FLOW_LOW',
-        alarm_name: defaultAlarm?.name || '冷却泵低流量告警',
-        metric_name: defaultAlarm?.name || '冷却泵低流量告警',
-        alarm_level: defaultAlarm?.level || 'high',
-        trigger_condition: '连续低于 50 L/min 超过 3s',
+        alarm_id: defaultAlarm?.id || 'ALM-01',
+        alarm_code: defaultAlarm?.code || 'ALM_TEMP_HIGH',
+        alarm_name: defaultAlarm?.name || '过温与温升异常告警',
+        metric_name: defaultAlarm?.name || '过温与温升异常告警',
+        alarm_level: (defaultAlarm as any)?.severity || (defaultAlarm as any)?.level || 'high',
+        trigger_condition: (defaultAlarm as any)?.description || '连续超出阈值超过 3s',
       });
     } else if (newType === 'parameter') {
       const defaultParam = parameters[0];
@@ -360,21 +382,26 @@ export const FaultEditor: React.FC = () => {
     });
   };
 
-  // Symptom preset templates with rich device context
+  // Symptom preset templates with rich device context & 5-dimensional temporal characterization
   const PRESET_SYMPTOMS: Array<Partial<FaultSymptom>> = [
-    { device_type: 'transformer', device_name: '储能主变压器', metric_name: '主变压器顶层油温', direction: 'up', time_window: '0-15min', normal_range: '40-65°C', unit: '°C' },
-    { device_type: 'cooling_pump', device_name: '主变冷却水泵', metric_name: '冷却回路实际流量', direction: 'down', time_window: '0-2min', normal_range: '120-150 L/min', unit: 'L/min' },
-    { device_type: 'gas_relay', device_name: '瓦斯保护继电器', metric_name: '重轻瓦斯继电器动作信号', direction: 'fluctuate', time_window: '15-30min', normal_range: '正常复归(0)', unit: 'BOOL' },
-    { device_type: 'bms', device_name: '高压箱绝缘监测仪', metric_name: '直流母线对地绝缘阻抗', direction: 'down', time_window: '0-5min', normal_range: '≥ 500 kΩ', unit: 'kΩ' },
-    { device_type: 'battery', device_name: '储能电池簇/电芯', metric_name: '电芯最大压差 ΔV', direction: 'up', time_window: '0-10min', normal_range: '≤ 150 mV', unit: 'mV' },
-    { device_type: 'pcs', device_name: '集中式变流器 (PCS)', metric_name: 'IGBT 桥臂工作温度', direction: 'up', time_window: '0-5min', normal_range: '35-75°C', unit: '°C' },
-    { device_type: 'cabin', device_name: '储能集装箱舱体', metric_name: '一氧化碳 CO 气体浓度', direction: 'jump', time_window: '0-5min', normal_range: '≤ 10 ppm', unit: 'ppm' },
-    { device_type: 'pipe', device_name: '闭式冷却管路', metric_name: '主回路管网工作压力', direction: 'down', time_window: '5-30min', normal_range: '0.25-0.45 MPa', unit: 'MPa' },
+    { device_type: 'transformer', device_name: '储能主变压器', metric_name: '主变压器顶层油温', trend: 'UP', rate: 'GRADUAL', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'up', time_window: '0-15min', normal_range: '40-65°C', unit: '°C' },
+    { device_type: 'cooling_pump', device_name: '主变冷却水泵', metric_name: '冷却回路实际流量', trend: 'DOWN', rate: 'RAPID', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'down', time_window: '0-2min', normal_range: '120-150 L/min', unit: 'L/min' },
+    { device_type: 'gas_relay', device_name: '瓦斯保护继电器', metric_name: '重轻瓦斯继电器动作信号', trend: 'FLAT', rate: 'RAPID', severity_relation: 'NEAR_LIMIT', duration_pattern: 'PERIODIC', volatility: 'OSCILLATION', direction: 'fluctuate', time_window: '15-30min', normal_range: '正常复归(0)', unit: 'BOOL' },
+    { device_type: 'bms', device_name: '高压箱绝缘监测仪', metric_name: '直流母线对地绝缘阻抗', trend: 'DOWN', rate: 'DRIFT', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'down', time_window: '0-5min', normal_range: '≥ 500 kΩ', unit: 'kΩ' },
+    { device_type: 'battery', device_name: '储能电池簇/电芯', metric_name: '电芯最大压差 ΔV', trend: 'UP', rate: 'GRADUAL', severity_relation: 'OVER_LIMIT', duration_pattern: 'PROGRESSIVE', volatility: 'STABLE', direction: 'up', time_window: '0-10min', normal_range: '≤ 150 mV', unit: 'mV' },
+    { device_type: 'pcs', device_name: '集中式变流器 (PCS)', metric_name: 'IGBT 桥臂工作温度', trend: 'UP', rate: 'RAPID', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'up', time_window: '0-5min', normal_range: '35-75°C', unit: '°C' },
+    { device_type: 'cabin', device_name: '储能集装箱舱体', metric_name: '一氧化碳 CO 气体浓度', trend: 'UP', rate: 'STEP', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'jump', time_window: '0-5min', normal_range: '≤ 10 ppm', unit: 'ppm' },
+    { device_type: 'pipe', device_name: '闭式冷却管路', metric_name: '主回路管网工作压力', trend: 'DOWN', rate: 'RAPID', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'down', time_window: '5-30min', normal_range: '0.25-0.45 MPa', unit: 'MPa' },
   ];
 
   const yamlOutput = useMemo(() => {
     if (!formData.id) return '';
-    return generateSingleFaultYaml(formData);
+    try {
+      return generateSingleFaultYaml(formData);
+    } catch (e) {
+      console.warn('Failed to generate YAML preview:', e);
+      return '';
+    }
   }, [formData]);
 
   return (
@@ -768,7 +795,7 @@ export const FaultEditor: React.FC = () => {
                         alarm_id: alm.id,
                         alarm_code: alm.code,
                         alarm_name: alm.name,
-                        alarm_level: alm.level,
+                        alarm_level: (alm as any)?.severity || (alm as any)?.level || 'high',
                         trigger_condition: alm.description || alm.typical_threshold || '告警触发',
                       })
                     }
@@ -796,8 +823,8 @@ export const FaultEditor: React.FC = () => {
                         parameter_code: pm.code,
                         parameter_name: pm.name,
                         baseline_value: pm.default_value,
-                        condition_operator: pm.data_type === 'enum' || pm.data_type === 'string' ? '==' : '!=',
-                        abnormal_value: pm.data_type === 'enum' && pm.enum_values?.length ? pm.enum_values.find(v => v !== pm.default_value) || 'manual' : 'abnormal',
+                        condition_operator: pm.param_type === 'enum' || pm.param_type === 'string' ? '==' : '!=',
+                        abnormal_value: pm.param_type === 'enum' && pm.enum_values?.length ? pm.enum_values.find(v => v.key !== String(pm.default_value))?.key || 'manual' : 'abnormal',
                       })
                     }
                     className="text-[11px] px-2 py-0.5 rounded bg-white hover:bg-purple-50 text-slate-700 border border-slate-200 hover:border-purple-300 transition flex items-center space-x-1"
@@ -848,7 +875,14 @@ export const FaultEditor: React.FC = () => {
                     <th className="py-2.5 px-3 w-12 text-center"># / 类型</th>
                     <th className="py-2.5 px-3 min-w-[170px]">所属设备类型 (Device)</th>
                     <th className="py-2.5 px-3 min-w-[280px]">关联对象与特征内容 (Associated Target)</th>
-                    <th className="py-2.5 px-3 min-w-[150px]">变化方向 / 触发判定 (Condition)</th>
+                    <th className="py-2.5 px-3 min-w-[230px]">
+                      <div className="flex items-center space-x-1.5">
+                        <span>时序 5 维特征判定</span>
+                        <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 border border-indigo-200 px-1 py-0.5 rounded font-normal">
+                          趋势/速率/阈值/时程/波动
+                        </span>
+                      </div>
+                    </th>
                     <th className="py-2.5 px-3 min-w-[120px]">时段窗口 (Time Window)</th>
                     <th className="py-2.5 px-3 min-w-[150px]">基准 / 参考范围 (Baseline)</th>
                     <th className="py-2.5 px-3 w-12 text-center">操作</th>
@@ -1004,11 +1038,14 @@ export const FaultEditor: React.FC = () => {
                                     className="flex-1 px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 font-medium focus:outline-none focus:border-slate-400"
                                   >
                                     <option value="">-- 从告警库选择 --</option>
-                                    {alarms.map((alm) => (
-                                      <option key={alm.id} value={alm.id}>
-                                        [{alm.level.toUpperCase()}] {alm.name} ({alm.code})
-                                      </option>
-                                    ))}
+                                    {(alarms || []).filter(Boolean).map((alm) => {
+                                      const lvl = String((alm as any)?.severity || (alm as any)?.level || 'high').toUpperCase();
+                                      return (
+                                        <option key={alm.id || alm.code} value={alm.id}>
+                                          [{lvl}] {alm.name} ({alm.code})
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </div>
 
@@ -1164,21 +1201,10 @@ export const FaultEditor: React.FC = () => {
                           {/* Direction / Condition Column */}
                           <td className="py-2.5 px-3 align-top">
                             {sType === 'indicator' ? (
-                              <select
-                                value={symptom.direction || 'up'}
-                                onChange={(e) =>
-                                  handleUpdateSymptom(symptom.id, {
-                                    direction: e.target.value as any,
-                                  })
-                                }
-                                className="w-full px-2 py-1 rounded bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-slate-400"
-                              >
-                                <option value="up">↑ 持续升高 / 越上限</option>
-                                <option value="down">↓ 持续骤降 / 越下限</option>
-                                <option value="fluctuate">~ 剧烈波动 / 异常震荡</option>
-                                <option value="abnormal_high">▲ 偏高异常</option>
-                                <option value="abnormal_low">▼ 偏低异常</option>
-                              </select>
+                              <Symptom5DInlineSelector
+                                symptom={symptom}
+                                onChange={(updates) => handleUpdateSymptom(symptom.id, updates)}
+                              />
                             ) : sType === 'alarm' ? (
                               <select
                                 value={symptom.alarm_level || 'high'}
@@ -1349,10 +1375,10 @@ export const FaultEditor: React.FC = () => {
                 setFormData({
                   ...formData,
                   propagation_chain: newChain,
-                  propagation_layout: newLayout,
+                  canvas_layout: newLayout,
                 });
               }}
-              savedLayout={formData.propagation_layout}
+              savedLayout={formData.canvas_layout}
             />
           </div>
         )}

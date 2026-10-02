@@ -1,36 +1,47 @@
 import * as yaml from 'js-yaml';
-import { DeviceNode, FaultPattern, RecoveryProcedure, AlarmType, MetricIndicator } from '../types';
+import { DeviceNode, FaultPattern, RecoveryProcedure, AlarmType, MetricIndicator, resolveSymptom5D } from '../types';
 
-const formatSymptomForYaml = (s: any) => ({
-  type: s.type || 'indicator',
-  device_type: s.device_type || undefined,
-  device_name: s.device_name || undefined,
-  indicator_id: s.indicator_id || undefined,
-  metric_code: s.metric_code || undefined,
-  metric_name: s.metric_name,
-  direction: s.direction || undefined,
-  time_window: s.time_window || undefined,
-  normal_range: s.normal_range || undefined,
-  unit: s.unit || undefined,
-  alarm_id: s.alarm_id || undefined,
-  alarm_code: s.alarm_code || undefined,
-  alarm_name: s.alarm_name || undefined,
-  alarm_level: s.alarm_level || undefined,
-  trigger_condition: s.trigger_condition || undefined,
-  parameter_id: s.parameter_id || undefined,
-  parameter_code: s.parameter_code || undefined,
-  parameter_name: s.parameter_name || undefined,
-  baseline_value: s.baseline_value !== undefined ? s.baseline_value : undefined,
-  abnormal_value: s.abnormal_value !== undefined ? s.abnormal_value : undefined,
-  condition_operator: s.condition_operator || undefined,
-  sequence_id: s.sequence_id || undefined,
-  sequence_name: s.sequence_name || undefined,
-  log_source: s.log_source || undefined,
-  keywords: s.keywords || undefined,
-  stat_type: s.stat_type || undefined,
-  stat_condition: s.stat_condition || undefined,
-  notes: s.notes || undefined,
-});
+const formatSymptomForYaml = (s: any) => {
+  const isIndicator = !s.type || s.type === 'indicator';
+  const profile = isIndicator ? resolveSymptom5D(s) : null;
+
+  return {
+    type: s.type || 'indicator',
+    device_type: s.device_type || undefined,
+    device_name: s.device_name || undefined,
+    indicator_id: s.indicator_id || undefined,
+    metric_code: s.metric_code || undefined,
+    metric_name: s.metric_name,
+    // 5 维时序异常特征判定
+    trend: s.trend || profile?.trend || undefined,
+    rate: s.rate || profile?.rate || undefined,
+    severity_relation: s.severity_relation || profile?.severity || undefined,
+    duration_pattern: s.duration_pattern || profile?.duration || undefined,
+    volatility: s.volatility || profile?.volatility || undefined,
+    direction: s.direction || undefined,
+    time_window: s.time_window || undefined,
+    normal_range: s.normal_range || undefined,
+    unit: s.unit || undefined,
+    alarm_id: s.alarm_id || undefined,
+    alarm_code: s.alarm_code || undefined,
+    alarm_name: s.alarm_name || undefined,
+    alarm_level: s.alarm_level || undefined,
+    trigger_condition: s.trigger_condition || undefined,
+    parameter_id: s.parameter_id || undefined,
+    parameter_code: s.parameter_code || undefined,
+    parameter_name: s.parameter_name || undefined,
+    baseline_value: s.baseline_value !== undefined ? s.baseline_value : undefined,
+    abnormal_value: s.abnormal_value !== undefined ? s.abnormal_value : undefined,
+    condition_operator: s.condition_operator || undefined,
+    sequence_id: s.sequence_id || undefined,
+    sequence_name: s.sequence_name || undefined,
+    log_source: s.log_source || undefined,
+    keywords: s.keywords || undefined,
+    stat_type: s.stat_type || undefined,
+    stat_condition: s.stat_condition || undefined,
+    notes: s.notes || undefined,
+  };
+};
 
 /**
  * Generate YAML for a single fault pattern conforming to fault_patterns.yaml schema
@@ -61,7 +72,7 @@ export function generateFaultYaml(fault: FaultPattern): string {
       status: fault.status,
       review_status: fault.review_status,
       updated_at: fault.updated_at,
-      author: fault.author || '储能专家',
+      author: fault.author || '能源领域专家',
       tags: fault.tags || [],
     },
   };

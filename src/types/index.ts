@@ -47,6 +47,15 @@ export interface MetricIndicator {
   author?: string;
 }
 
+export * from './symptomDimensions';
+import type {
+  TrendDirection,
+  ChangeRate,
+  SeverityThreshold,
+  DurationPattern,
+  VolatilityPattern,
+} from './symptomDimensions';
+
 export type DeviceTypeCategory =
   | 'transformer'
   | 'cooling_pump'
@@ -89,7 +98,18 @@ export interface Symptom {
   indicator_id?: string; // Reference to MetricIndicator.code or id (e.g. 'coolant_flow')
   metric_name: string; // e.g. '冷却液流量', '电池舱温度', '冷却泵运行电流'
   metric_code?: string; // snake_case code
-  direction?: SymptomDirection; // 'up' (上升), 'down' (下降), 'fluctuate' (波动), 'jump' (突变)
+  direction?: SymptomDirection; // 兼容旧版: 'up', 'down', 'fluctuate', 'jump'
+  
+  // 5 维时序异常特征 (5-Dimensional Temporal Anomaly Characterization)
+  // 单一特征选择：每个指标只能在 5 维中选择其中 1 个特征
+  selected_dimension?: 'trend' | 'rate' | 'severity' | 'duration' | 'volatility';
+  selected_feature?: string;
+  trend?: TrendDirection; // 维度 1: 趋势方向 (UP | DOWN | FLAT | REVERSAL_UP | REVERSAL_DOWN)
+  rate?: ChangeRate; // 维度 2: 变化速率 (DRIFT | GRADUAL | RAPID | STEP | SPIKE)
+  severity_relation?: SeverityThreshold; // 维度 3: 幅度与阈值关系 (IN_RANGE | DEVIATION | NEAR_LIMIT | OVER_LIMIT | OVER_DANGER)
+  duration_pattern?: DurationPattern; // 维度 4: 时间模式 (INSTANT | SHORT | SUSTAINED | INTERMITTENT | PERIODIC | PROGRESSIVE)
+  volatility?: VolatilityPattern; // 维度 5: 波动特征 (STABLE | JITTER | OSCILLATION | CHAOTIC | DIVERGENT)
+  
   normal_range?: string; // e.g. '50-200 L/min', '15-35°C'
   unit?: string; // e.g. 'L/min', '°C', 'A'
 
@@ -214,7 +234,9 @@ export interface AlarmType {
   category: string;
   device_type: string;
   severity: SeverityLevel;
+  level?: SeverityLevel | string; // 兼容别名
   default_threshold: string;
+  typical_threshold?: string; // 兼容别名
   unit: string;
   description: string;
 }
@@ -224,6 +246,13 @@ export interface AccompanyingSymptomInput {
   current_value: string;
   normal_range?: string;
   direction?: SymptomDirection;
+  selected_dimension?: 'trend' | 'rate' | 'severity' | 'duration' | 'volatility';
+  selected_feature?: string;
+  trend?: TrendDirection;
+  rate?: ChangeRate;
+  severity_relation?: SeverityThreshold;
+  duration_pattern?: DurationPattern;
+  volatility?: VolatilityPattern;
   is_abnormal: boolean;
   unit?: string;
 }
@@ -309,6 +338,7 @@ export interface ConfigParameter {
   applicable_device_types: string[]; // e.g. ['pump', 'battery', 'pcs', 'bms']
   description: string;
   param_type: ParameterDataType;
+  data_type?: ParameterDataType; // 兼容别名
   enum_values?: EnumOption[]; // For enum type
   range_min?: number; // For int / float type
   range_max?: number; // For int / float type
@@ -374,7 +404,7 @@ export interface EventSequencePattern {
   match_mode?: 'regex' | 'contains' | 'exact' | 'and' | 'or';
   
   stat_type?: 'count' | 'rate' | 'duration' | 'first_seen'; // 4. 次数或者统计
-  stat_operator?: '>=' | '>' | '==' | '<=' | 'between';
+  stat_operator?: '>=' | '>' | '==' | '<=' | '<' | 'between';
   stat_threshold?: number | string; // e.g. 3
   stat_unit?: string; // e.g. '次', '次/分', '秒'
   stat_condition?: string; // 汇总条件文本 e.g. '出现次数 >= 3 次'

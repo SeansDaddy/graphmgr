@@ -61,7 +61,7 @@ export const AlarmManager: React.FC = () => {
             <span>告警接入与阈值映射 (Alarm Types)</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            配置储能监控系统标准告警代码、传感器阈值基准及与设备、故障的映射关系
+            配置能源监控系统标准告警代码、传感器阈值基准及与设备、故障的映射关系
           </p>
         </div>
 

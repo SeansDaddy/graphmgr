@@ -460,7 +460,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newId = partial?.id || `F${String(nextIdx).padStart(3, '0')}`;
     const newFault: FaultPattern = {
       id: newId,
-      name: partial?.name || `新储能故障模式 ${nextIdx}`,
+      name: partial?.name || `新能源领域故障模式 ${nextIdx}`,
       severity: partial?.severity || 'high',
       root_cause: partial?.root_cause || '### 故障原因概述\n请在此录入故障机理与诱发因素...',
       affected_devices: partial?.affected_devices || ['D001'],
@@ -965,7 +965,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `V-${Date.now()}`,
       version: newVersionTag,
       timestamp: nowStr,
-      author: '张工 (储能运维专家)',
+      author: '张工 (能源领域运维专家)',
       message: releaseNote,
       stats: {
         devices: updatedDevices.length,
@@ -1140,7 +1140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedIndicatorId('coolant_flow');
     setSelectedParameterId('pump_control_mode');
     setSelectedProfileId('CFG-DEV-COOL-PUMP');
-    showToast('已重置回标准储能示例知识库', 'info');
+    showToast('已重置回标准能源领域示例知识库', 'info');
   };
 
   const openFaultEditor = (faultId: string) => {

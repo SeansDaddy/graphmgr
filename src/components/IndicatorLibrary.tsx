@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { MetricIndicator } from '../types';
+import { MetricIndicator, resolveSymptom5D } from '../types';
 import {
   Gauge,
   Search,
@@ -634,34 +634,28 @@ export const IndicatorLibrary: React.FC = () => {
                                 </span>
                               </div>
 
-                              {matchedSymptom && (
-                                <div className="mt-2 flex items-center space-x-3 text-[11px] text-slate-600">
-                                  <span className="flex items-center space-x-1 font-medium">
-                                    {matchedSymptom.direction === 'up' ? (
-                                      <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
-                                    ) : matchedSymptom.direction === 'down' ? (
-                                      <TrendingDown className="w-3.5 h-3.5 text-blue-500" />
-                                    ) : (
-                                      <Activity className="w-3.5 h-3.5 text-amber-500" />
-                                    )}
-                                    <span>
-                                      异常方向:{' '}
-                                      {matchedSymptom.direction === 'up'
-                                        ? '异常偏高 / 上升'
-                                        : matchedSymptom.direction === 'down'
-                                        ? '异常偏低 / 骤降'
-                                        : '剧烈波动'}
+                              {matchedSymptom && (() => {
+                                const s5d = resolveSymptom5D(matchedSymptom);
+                                return (
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                                    <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200/70 font-mono text-indigo-700 font-semibold text-[11px]">
+                                      <span>{s5d.trendObj.symbol}</span>
+                                      <span>{s5d.rateObj.symbol}</span>
+                                      <span>{s5d.severityObj.symbol}</span>
+                                      <span className="font-sans font-medium text-slate-800">
+                                        {s5d.contextualSeverity} · {s5d.rateObj.name} · {s5d.durationObj.name}
+                                      </span>
                                     </span>
-                                  </span>
 
-                                  <span>•</span>
-                                  <span>时间窗: {matchedSymptom.time_window || '0-5min'}</span>
-                                  <span>•</span>
-                                  <span className="font-mono">
-                                    范围: {matchedSymptom.normal_range || selectedIndicator.normal_range}
-                                  </span>
-                                </div>
-                              )}
+                                    <span>•</span>
+                                    <span>时间窗: {matchedSymptom.time_window || '0-5min'}</span>
+                                    <span>•</span>
+                                    <span className="font-mono">
+                                      范围: {matchedSymptom.normal_range || selectedIndicator.normal_range}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                             <button

@@ -5,6 +5,7 @@ import {
   FaultSymptom,
   DeviceTypeCategory,
   DEVICE_TYPE_OPTIONS,
+  resolveSymptom5D,
 } from '../types';
 import {
   Plus,
@@ -35,7 +36,7 @@ interface PropagationCanvasProps {
   savedLayout?: PropagationNodePos[];
 }
 
-export const getDeviceTypeStyle = (type?: DeviceTypeCategory) => {
+export const getDeviceTypeStyle = (type?: DeviceTypeCategory | string) => {
   switch (type) {
     case 'cooling_pump':
       return {
@@ -128,9 +129,9 @@ export const getDeviceTypeStyle = (type?: DeviceTypeCategory) => {
   }
 };
 
-export const getDeviceTypeLabel = (type?: DeviceTypeCategory) => {
+export const getDeviceTypeLabel = (type?: DeviceTypeCategory | string) => {
   const opt = DEVICE_TYPE_OPTIONS.find((o) => o.value === type);
-  return opt ? opt.label : '辅助设备';
+  return opt ? opt.label : (type || '辅助设备');
 };
 
 export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
@@ -156,10 +157,10 @@ export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
     stepId?: string;
     fromLabel: string;
     toLabel: string;
-    fromDeviceType: DeviceTypeCategory;
+    fromDeviceType: DeviceTypeCategory | string;
     fromDeviceName: string;
     fromSymptomName: string;
-    toDeviceType: DeviceTypeCategory;
+    toDeviceType: DeviceTypeCategory | string;
     toDeviceName: string;
     toSymptomName: string;
     timeWindow: string;
@@ -173,7 +174,7 @@ export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
     nodeId: string;
     label: string;
     type: 'fault' | 'symptom' | 'intermediate' | 'consequence';
-    device_type: DeviceTypeCategory;
+    device_type: DeviceTypeCategory | string;
     device_name: string;
     symptom_name: string;
   } | null>(null);
@@ -384,7 +385,8 @@ export const PropagationCanvas: React.FC<PropagationCanvasProps> = ({
         symDetail = `[日志] ${sym.log_source}: ${sym.keywords} (${sym.stat_condition || '统计满足'})`;
       } else {
         label = sym.metric_name || `指标 ${sym.metric_code}`;
-        symDetail = `${sym.metric_name} (${sym.direction === 'up' ? '持续升高' : sym.direction === 'down' ? '骤降' : '异常波动'})`;
+        const s5d = resolveSymptom5D(sym);
+        symDetail = `${sym.metric_name} (${s5d.trendObj.symbol} ${s5d.contextualSeverity} · ${s5d.rateObj.name})`;
       }
 
       if (!existingLabels.has(label)) {
