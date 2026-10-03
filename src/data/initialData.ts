@@ -1,7 +1,11 @@
 import { DeviceNode, FaultPattern, RecoveryProcedure, AlarmType, VersionSnapshot, MetricIndicator } from '../types';
+import { BATTERY_CLUSTER_OVERHEAT_FTA_DOC, convertFtaToStudioEntities } from './batteryClusterOverheatFta';
+
+export const CLUSTER_OVERHEAT_STUDIO_ENTITIES = convertFtaToStudioEntities(BATTERY_CLUSTER_OVERHEAT_FTA_DOC);
 
 // 4.3 Standard Indicator Library Seed Data
 export const INITIAL_INDICATORS: MetricIndicator[] = [
+  ...CLUSTER_OVERHEAT_STUDIO_ENTITIES.indicators,
   {
     id: 'coolant_flow',
     code: 'coolant_flow',
@@ -340,6 +344,7 @@ export const INITIAL_INDICATORS: MetricIndicator[] = [
 
 // Standard Device Types & Model Versions (不体现具体站点，按设备类型与版本组织)
 export const INITIAL_DEVICES: DeviceNode[] = [
+  ...CLUSTER_OVERHEAT_STUDIO_ENTITIES.devices,
   // 1. 冷却循环系统
   {
     id: 'DEV-COOL-PUMP',
@@ -542,6 +547,7 @@ export const INITIAL_DEVICES: DeviceNode[] = [
   },
 ];
 export const INITIAL_FAULTS: FaultPattern[] = [
+  CLUSTER_OVERHEAT_STUDIO_ENTITIES.fault,
   {
     id: 'F001',
     name: '冷却泵故障',
@@ -1687,6 +1693,7 @@ export const INITIAL_FAULTS: FaultPattern[] = [
 ];
 
 export const INITIAL_SOPS: RecoveryProcedure[] = [
+  ...CLUSTER_OVERHEAT_STUDIO_ENTITIES.sops,
   {
     id: 'RP-F001',
     name: '冷却泵故障应急处置',
@@ -2084,6 +2091,7 @@ export const INITIAL_SOPS: RecoveryProcedure[] = [
 ];
 
 export const INITIAL_ALARMS: AlarmType[] = [
+  ...CLUSTER_OVERHEAT_STUDIO_ENTITIES.alarms,
   {
     id: 'ALM-01',
     code: 'ALM_TEMP_HIGH',

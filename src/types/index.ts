@@ -1,5 +1,6 @@
 // DiagnosGraph Studio - Core Domain Types
 // Strictly adhering to domain terminology: Metric Indicator, Fault, Symptom, Propagation Chain, SOP
+import type { FaultTreeDocument } from './fta';
 
 export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
@@ -189,6 +190,7 @@ export interface FaultPattern {
   canvas_layout?: PropagationNodePos[];
   propagation_layout?: Record<string, { x: number; y: number }>;
   associated_procedure_ids: string[]; // SOP IDs e.g. ['RP-F001']
+  fta_document?: FaultTreeDocument;
   status: EntityStatus;
   review_status: ReviewStatus;
   updated_at: string;
@@ -317,7 +319,7 @@ export interface VersionSnapshot {
   };
 }
 
-export type FaultViewMode = 'list' | 'graph';
+export type FaultViewMode = 'list' | 'graph' | 'fta';
 
 // 4.9 Config Parameter Library Types (v1.1 Core Module)
 export type ParameterDataType = 'enum' | 'int' | 'float' | 'bool' | 'string';
@@ -444,3 +446,5 @@ export type ActiveTab =
   | 'test-playground'
   | 'network'
   | 'version-manager';
+
+export * from './fta';

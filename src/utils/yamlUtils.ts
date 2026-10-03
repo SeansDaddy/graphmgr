@@ -1,5 +1,25 @@
 import * as yaml from 'js-yaml';
 import { DeviceNode, FaultPattern, RecoveryProcedure, AlarmType, MetricIndicator, resolveSymptom5D } from '../types';
+import { FaultTreeDocument } from '../types/fta';
+import { getFtaDocumentForFault, formatFtaDocumentToYaml } from '../data/ftaRepository';
+
+/**
+ * Generate standard FTA YAML (apiVersion: diag.example.com/v1, kind: FaultTree)
+ */
+export function generateFaultTreeYaml(faultOrDoc: FaultPattern | FaultTreeDocument): string {
+  if ('kind' in faultOrDoc && faultOrDoc.kind === 'FaultTree') {
+    return formatFtaDocumentToYaml(faultOrDoc);
+  }
+  const ftaDoc = getFtaDocumentForFault(faultOrDoc as FaultPattern);
+  return formatFtaDocumentToYaml(ftaDoc);
+}
+
+/**
+ * Generate all standard FTA fault trees bundle YAML
+ */
+export function generateAllFaultTreesYaml(faults: FaultPattern[]): string {
+  return faults.map((f) => generateFaultTreeYaml(f)).join('\n---\n\n');
+}
 
 const formatSymptomForYaml = (s: any) => {
   const isIndicator = !s.type || s.type === 'indicator';
@@ -240,12 +260,14 @@ export function generateFullSystemYamlBundle(
   sops: RecoveryProcedure[],
   alarms: AlarmType[]
 ): {
+  'fault_trees_fta.yaml': string;
   'fault_patterns.yaml': string;
   'devices.yaml': string;
   'recovery_procedures.yaml': string;
   'alarms.yaml': string;
 } {
   return {
+    'fault_trees_fta.yaml': generateAllFaultTreesYaml(faults),
     'fault_patterns.yaml': generateAllFaultsYaml(faults),
     'devices.yaml': generateDevicesYaml(devices),
     'recovery_procedures.yaml': generateSopsYaml(sops),
@@ -257,7 +279,7 @@ export function generateFullSystemYamlBundle(
  * Parse uploaded YAML string back into structured assets
  */
 export function parseUploadedYaml(rawYaml: string): {
-  type: 'faults' | 'devices' | 'procedures' | 'single_fault' | 'unknown';
+  type: 'faults' | 'devices' | 'procedures' | 'single_fault' | 'fta' | 'unknown';
   data: any;
   error?: string;
 } {
@@ -265,6 +287,10 @@ export function parseUploadedYaml(rawYaml: string): {
     const parsed = yaml.load(rawYaml) as any;
     if (!parsed || typeof parsed !== 'object') {
       return { type: 'unknown', data: null, error: 'YAML 内容为空或非对象结构' };
+    }
+
+    if (parsed.apiVersion?.includes('diag.example.com') || parsed.kind === 'FaultTree') {
+      return { type: 'fta', data: parsed };
     }
 
     if (parsed.faults && Array.isArray(parsed.faults)) {

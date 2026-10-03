@@ -207,29 +207,13 @@ export const Workbench: React.FC<{
               <span className="text-xs text-slate-600 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded">v1.1</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-2.5">
               <div
                 onClick={() => setActiveTab('devices')}
                 className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
               >
                 <div className="text-[11px] font-medium text-slate-500">设备 BOM</div>
                 <div className="text-lg font-bold text-slate-900 mt-0.5">{devices.length} <span className="text-xs font-normal text-slate-500">个</span></div>
-              </div>
-
-              <div
-                onClick={() => setActiveTab('faults')}
-                className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
-              >
-                <div className="text-[11px] font-medium text-slate-500">故障模式</div>
-                <div className="text-lg font-bold text-slate-900 mt-0.5">{faults.length} <span className="text-xs font-normal text-slate-500">个</span></div>
-              </div>
-
-              <div
-                onClick={() => setActiveTab('procedures')}
-                className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
-              >
-                <div className="text-[11px] font-medium text-slate-500">处置 SOP</div>
-                <div className="text-lg font-bold text-slate-900 mt-0.5">{sops.length} <span className="text-xs font-normal text-slate-500">套</span></div>
               </div>
 
               <div
@@ -249,11 +233,35 @@ export const Workbench: React.FC<{
               </div>
 
               <div
+                onClick={() => setActiveTab('alarms')}
+                className="p-3 rounded-xl bg-rose-50/60 hover:bg-rose-100/60 border border-rose-100 cursor-pointer transition text-left"
+              >
+                <div className="text-[11px] font-bold text-rose-700">告警接入</div>
+                <div className="text-lg font-bold text-rose-950 mt-0.5">{alarms.length} <span className="text-xs font-normal text-rose-500">项</span></div>
+              </div>
+
+              <div
                 onClick={() => setActiveTab('event-logs')}
                 className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
               >
                 <div className="text-[11px] font-medium text-slate-500">SOE 事件</div>
                 <div className="text-lg font-bold text-slate-900 mt-0.5">{soeLogs.length} <span className="text-xs font-normal text-slate-500">条</span></div>
+              </div>
+
+              <div
+                onClick={() => setActiveTab('faults')}
+                className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
+              >
+                <div className="text-[11px] font-medium text-slate-500">故障模式</div>
+                <div className="text-lg font-bold text-slate-900 mt-0.5">{faults.length} <span className="text-xs font-normal text-slate-500">个</span></div>
+              </div>
+
+              <div
+                onClick={() => setActiveTab('procedures')}
+                className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-100 cursor-pointer transition text-left"
+              >
+                <div className="text-[11px] font-medium text-slate-500">处置 SOP</div>
+                <div className="text-lg font-bold text-slate-900 mt-0.5">{sops.length} <span className="text-xs font-normal text-slate-500">套</span></div>
               </div>
             </div>
           </div>

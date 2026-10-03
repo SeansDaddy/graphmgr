@@ -14,6 +14,7 @@ import {
   generateDevicesYaml,
   generateProceduresYaml,
   generateAlarmsYaml,
+  generateAllFaultTreesYaml,
   generateFullSystemYamlBundle,
   downloadFile,
 } from '../utils/yamlUtils';
@@ -31,13 +32,14 @@ export const VersionManager: React.FC = () => {
     showToast,
   } = useApp();
 
-  const [activeYamlTab, setActiveYamlTab] = useState<'faults' | 'devices' | 'procedures' | 'alarms'>('faults');
+  const [activeYamlTab, setActiveYamlTab] = useState<'fta' | 'faults' | 'devices' | 'procedures' | 'alarms'>('fta');
   const [releaseNote, setReleaseNote] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
 
   // Generate current live YAML files
   const currentYamls = useMemo(() => {
     return {
+      fta: generateAllFaultTreesYaml(faults),
       faults: generateFaultsYaml(faults),
       devices: generateDevicesYaml(devices),
       procedures: generateProceduresYaml(sops),
@@ -57,14 +59,17 @@ export const VersionManager: React.FC = () => {
 
   const handleDownloadAll = () => {
     const bundle = generateFullSystemYamlBundle(devices, faults, sops, alarms);
-    downloadFile(bundle['fault_patterns.yaml'], 'fault_patterns.yaml');
+    downloadFile(bundle['fault_trees_fta.yaml'], 'fault_trees_fta.yaml');
+    setTimeout(() => {
+      downloadFile(bundle['fault_patterns.yaml'], 'fault_patterns.yaml');
+    }, 150);
     setTimeout(() => {
       downloadFile(bundle['devices.yaml'], 'devices.yaml');
-    }, 200);
+    }, 300);
     setTimeout(() => {
       downloadFile(bundle['recovery_procedures.yaml'], 'recovery_procedures.yaml');
-    }, 400);
-    showToast('已打包下载全部 DiagnosGraph 结构化 YAML 资产', 'success');
+    }, 450);
+    showToast('已打包下载全部 DiagnosGraph 结构化 YAML 资产 (含 FTA 工业故障树标准)', 'success');
   };
 
   return (

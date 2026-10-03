@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { SeverityLevel, resolveSymptomSingleFeature } from '../types';
 import { GlobalNetworkGraph } from './GlobalNetworkGraph';
+import { FtaPanoramaView } from './FtaPanoramaView';
 import {
   AlertOctagon,
   PlusCircle,
@@ -22,6 +23,7 @@ export const FaultList: React.FC = () => {
     addFault,
     deleteFault,
     openFaultEditor,
+    selectedFaultId,
     setSelectedFaultId,
     setActiveTab,
     publishFault,
@@ -95,6 +97,17 @@ export const FaultList: React.FC = () => {
               <GitFork className="w-4 h-4 text-slate-600" />
               <span>传播网络图谱全景</span>
             </button>
+            <button
+              onClick={() => setFaultViewMode('fta')}
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                faultViewMode === 'fta'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GitFork className="w-4 h-4 text-rose-600 transform -rotate-45" />
+              <span>FTA 故障树全景 (FAT/FTA 标准)</span>
+            </button>
           </div>
 
           <button
@@ -111,6 +124,9 @@ export const FaultList: React.FC = () => {
       {faultViewMode === 'graph' ? (
         /* Global Network Graph Mode (Embedded inside Fault Modeling) */
         <GlobalNetworkGraph embedded={true} />
+      ) : faultViewMode === 'fta' ? (
+        /* FTA Fault Tree Panorama Mode (全系统多故障场景全景森林) */
+        <FtaPanoramaView onClose={() => setFaultViewMode('list')} />
       ) : (
         /* Standard Fault Cards & List Mode */
         <div className="space-y-6">
@@ -321,6 +337,17 @@ export const FaultList: React.FC = () => {
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>编辑</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedFaultId(f.id);
+                          setFaultViewMode('fta');
+                        }}
+                        className="flex items-center space-x-1 text-rose-700 hover:text-rose-900 font-medium"
+                        title="查看 FTA 工业级故障树模型"
+                      >
+                        <GitFork className="w-3.5 h-3.5 transform -rotate-45 text-rose-600" />
+                        <span>FTA 树</span>
                       </button>
                       <button
                         onClick={() => {

@@ -194,7 +194,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [devices, setDevices] = useState<DeviceNode[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DEVICES);
-      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_DEVICES);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_DEVICES] : INITIAL_DEVICES;
+      return dedupeById(list);
     } catch {
       return dedupeById(INITIAL_DEVICES);
     }
@@ -203,8 +204,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [faults, setFaults] = useState<FaultPattern[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FAULTS);
-      const raw = saved ? JSON.parse(saved) : INITIAL_FAULTS;
-      return dedupeById(raw).map(sanitizeFault);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_FAULTS] : INITIAL_FAULTS;
+      return dedupeById(list).map(sanitizeFault);
     } catch {
       return dedupeById(INITIAL_FAULTS).map(sanitizeFault);
     }
@@ -213,7 +214,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [sops, setSops] = useState<RecoveryProcedure[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SOPS);
-      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_SOPS);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_SOPS] : INITIAL_SOPS;
+      return dedupeById(list);
     } catch {
       return dedupeById(INITIAL_SOPS);
     }
@@ -222,7 +224,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [alarms, setAlarms] = useState<AlarmType[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ALARMS);
-      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_ALARMS);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_ALARMS] : INITIAL_ALARMS;
+      return dedupeById(list);
     } catch {
       return dedupeById(INITIAL_ALARMS);
     }
@@ -231,7 +234,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [indicators, setIndicators] = useState<MetricIndicator[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.INDICATORS);
-      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_INDICATORS);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_INDICATORS] : INITIAL_INDICATORS;
+      return dedupeById(list);
     } catch {
       return dedupeById(INITIAL_INDICATORS);
     }
@@ -240,7 +244,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [parameters, setParameters] = useState<ConfigParameter[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PARAMETERS);
-      return saved ? dedupeById(JSON.parse(saved)) : dedupeById(INITIAL_CONFIG_PARAMETERS);
+      const list = saved ? [...JSON.parse(saved), ...INITIAL_CONFIG_PARAMETERS] : INITIAL_CONFIG_PARAMETERS;
+      return dedupeById(list);
     } catch {
       return dedupeById(INITIAL_CONFIG_PARAMETERS);
     }

@@ -12,6 +12,8 @@ import {
 } from '../types';
 import { Symptom5DInlineSelector, Symptom5DBadge } from './Symptom5DEditor';
 import { PropagationCanvas } from './PropagationCanvas';
+import { FtaTreeViewer } from './FtaTreeViewer';
+import { getFtaDocumentForFault, formatFtaDocumentToYaml } from '../data/ftaRepository';
 import {
   AlertOctagon,
   Save,
@@ -41,6 +43,7 @@ import {
   Search,
   ArrowRight,
   ShieldAlert,
+  GitFork,
 } from 'lucide-react';
 import { generateSingleFaultYaml } from '../utils/yamlUtils';
 
@@ -102,10 +105,11 @@ export const FaultEditor: React.FC = () => {
     openParameterEditor,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'symptoms' | 'propagation' | 'sop'>(
+  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'symptoms' | 'propagation' | 'fta' | 'sop'>(
     'basic'
   );
   const [showYamlPreview, setShowYamlPreview] = useState(false);
+  const [yamlPreviewFormat, setYamlPreviewFormat] = useState<'fta' | 'classic'>('fta');
   const [showDevicePicker, setShowDevicePicker] = useState(false);
   const [symptomFilterType, setSymptomFilterType] = useState<SymptomType | 'all'>('all');
 
@@ -394,6 +398,19 @@ export const FaultEditor: React.FC = () => {
     { device_type: 'pipe', device_name: '闭式冷却管路', metric_name: '主回路管网工作压力', trend: 'DOWN', rate: 'RAPID', severity_relation: 'OVER_LIMIT', duration_pattern: 'SUSTAINED', volatility: 'STABLE', direction: 'down', time_window: '5-30min', normal_range: '0.25-0.45 MPa', unit: 'MPa' },
   ];
 
+  const ftaDoc = useMemo(() => {
+    return getFtaDocumentForFault(formData, faults);
+  }, [formData, faults]);
+
+  const ftaYamlOutput = useMemo(() => {
+    try {
+      return formatFtaDocumentToYaml(ftaDoc);
+    } catch (e) {
+      console.warn('Failed to format FTA YAML:', e);
+      return '';
+    }
+  }, [ftaDoc]);
+
   const yamlOutput = useMemo(() => {
     if (!formData.id) return '';
     try {
@@ -433,13 +450,22 @@ export const FaultEditor: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              所见即所得故障建模 • 对应 fault_patterns.yaml • 支持测试场直接仿真
+              工业级故障机理建模 • 规范支持 FAT/FTA 故障树 (apiVersion: diag.example.com/v1) • 支持实时逻辑门真值推演
             </p>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-2.5">
+          <button
+            onClick={() => setActiveSubTab('fta')}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold transition shadow-xs"
+            title="查看与推演 FTA 故障树逻辑门模型"
+          >
+            <GitFork className="w-3.5 h-3.5 text-rose-600 transform -rotate-45" />
+            <span>FTA 故障树模型</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('test-playground')}
             className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium transition shadow-xs"
@@ -506,6 +532,18 @@ export const FaultEditor: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveSubTab('fta')}
+          className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-xs font-medium transition ${
+            activeSubTab === 'fta'
+              ? 'bg-white text-slate-900 font-bold shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <GitFork className="w-3.5 h-3.5 text-rose-600 transform -rotate-45" />
+          <span>4. FTA 故障树 (FAT/FTA 标准规范)</span>
+        </button>
+
+        <button
           onClick={() => setActiveSubTab('sop')}
           className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-xs font-medium transition ${
             activeSubTab === 'sop'
@@ -514,7 +552,7 @@ export const FaultEditor: React.FC = () => {
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
-          <span>4. 关联处置 SOP ({formData.associated_procedure_ids?.length || 0})</span>
+          <span>5. 关联处置 SOP ({formData.associated_procedure_ids?.length || 0})</span>
         </button>
       </div>
 
@@ -742,8 +780,22 @@ export const FaultEditor: React.FC = () => {
                 ))}
               </div>
 
-              <div className="text-[11px] text-slate-500">
-                共关联 <span className="font-bold text-slate-800">{(formData.symptoms || []).length}</span> 项故障症状特征
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="text-[11px] text-slate-500">
+                  共关联 <span className="font-bold text-slate-800">{(formData.symptoms || []).length}</span> 项故障症状特征
+                </div>
+                {(formData.symptoms || []).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('fta')}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold transition cursor-pointer"
+                    title="前往 FTA 逻辑树，基于已录入的异常特征编辑或智能合成故障树"
+                  >
+                    <GitFork className="w-3.5 h-3.5 transform -rotate-45" />
+                    <span>前往【FTA 逻辑树】编辑与智能建树</span>
+                    <ArrowRight className="w-3 h-3 ml-0.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1383,7 +1435,25 @@ export const FaultEditor: React.FC = () => {
           </div>
         )}
 
-        {/* Sub-Tab 4: Associated SOPs */}
+        {/* Sub-Tab 4: FTA Fault Tree */}
+        {activeSubTab === 'fta' && (
+          <div className="space-y-6">
+            <FtaTreeViewer
+              fault={formData}
+              ftaDoc={formData.fta_document}
+              showFaultSelector={false}
+              isEditable={true}
+              onUpdateFtaDoc={(updatedDoc) => {
+                setFormData((prev) => ({ ...prev, fta_document: updatedDoc }));
+                saveFaultDraft(formData.id, { fta_document: updatedDoc });
+                showToast('FTA 故障树结构已成功更新并保存草稿', 'success');
+              }}
+              onOpenSop={openSopEditor}
+            />
+          </div>
+        )}
+
+        {/* Sub-Tab 5: Associated SOPs */}
         {activeSubTab === 'sop' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -1473,7 +1543,7 @@ export const FaultEditor: React.FC = () => {
         )}
       </div>
 
-      {/* Collapsible YAML Preview Box (Default collapsed as per spec) */}
+      {/* Collapsible YAML Preview Box (FAT/FTA Standard & Diagnostic Engine) */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <button
           onClick={() => setShowYamlPreview(!showYamlPreview)}
@@ -1482,10 +1552,10 @@ export const FaultEditor: React.FC = () => {
           <div className="flex items-center space-x-2.5">
             <Code className="w-4 h-4 text-slate-700" />
             <span className="text-xs font-bold text-slate-900">
-              技术评审 YAML 结构预览 ({formData.id}.yaml)
+              技术评审 YAML 结构预览 ({formData.id})
             </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-              所见即所得
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-semibold">
+              FAT/FTA 工业标准规范
             </span>
           </div>
 
@@ -1496,12 +1566,35 @@ export const FaultEditor: React.FC = () => {
         </button>
 
         {showYamlPreview && (
-          <div className="p-4 border-t border-slate-200 bg-white">
-            <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 text-[11px] text-slate-500">
-              <span>与 DiagnosGraph 诊断引擎 YAML 字段 100% 对齐</span>
+          <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100 text-[11px] text-slate-500">
+              <div className="flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+                <button
+                  onClick={() => setYamlPreviewFormat('fta')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
+                    yamlPreviewFormat === 'fta'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  FTA 工业故障树标准 (apiVersion: diag.example.com/v1)
+                </button>
+                <button
+                  onClick={() => setYamlPreviewFormat('classic')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
+                    yamlPreviewFormat === 'classic'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  传播链定义 (fault_patterns.yaml)
+                </button>
+              </div>
+
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(yamlOutput);
+                  const toCopy = yamlPreviewFormat === 'fta' ? ftaYamlOutput : yamlOutput;
+                  navigator.clipboard.writeText(toCopy);
                   showToast('已复制 YAML 至剪贴板', 'success');
                 }}
                 className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-xs transition"
@@ -1511,7 +1604,7 @@ export const FaultEditor: React.FC = () => {
               </button>
             </div>
             <pre className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs overflow-x-auto leading-relaxed max-h-96 select-text whitespace-pre">
-              {yamlOutput}
+              {yamlPreviewFormat === 'fta' ? ftaYamlOutput : yamlOutput}
             </pre>
           </div>
         )}
