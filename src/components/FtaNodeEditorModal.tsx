@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FtaTreeNode, FtaObservation, FtaLogicGate } from '../types/fta';
 import { FaultSymptom } from '../types';
+import { useApp } from '../context/AppContext';
 import {
   X,
   Plus,
@@ -14,6 +15,9 @@ import {
   Layers,
   Sparkles,
   Info,
+  FileText,
+  ExternalLink,
+  CheckCircle2,
 } from 'lucide-react';
 
 // ================= 1. 从异常症状特征添加/绑定底事件弹窗 =================
@@ -488,7 +492,7 @@ export const FtaAddGateModal: React.FC<FtaAddGateModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-xs"
+              className="flex items-center space-x-1.5 px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>创建逻辑门</span>
@@ -520,6 +524,7 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
   onConfirm,
   onDelete,
 }) => {
+  const { sops, openSopEditor } = useApp();
   const [name, setName] = useState('');
   const [gate, setGate] = useState<FtaLogicGate>('AND');
   const [weight, setWeight] = useState('1.0');
@@ -529,6 +534,11 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
   const [forDuration, setForDuration] = useState('');
   const [withinWindow, setWithinWindow] = useState('');
   const [conclusionText, setConclusionText] = useState('');
+  const [selectedSopId, setSelectedSopId] = useState('');
+
+  const currentSelectedSop = useMemo(() => {
+    return sops.find((s) => s.id === selectedSopId) || sops[0];
+  }, [sops, selectedSopId]);
 
   useEffect(() => {
     if (node) {
@@ -547,8 +557,15 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
       if (node.output) {
         setConclusionText(node.output.conclusion || '');
       }
+
+      if (node.sop_binding) {
+        setSelectedSopId(node.sop_binding.sop_id || (sops[0]?.id ?? ''));
+      } else {
+        const defaultSop = sops[0];
+        setSelectedSopId(defaultSop?.id ?? '');
+      }
     }
-  }, [node, currentParentId]);
+  }, [node, currentParentId, sops]);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -589,6 +606,15 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
         value: operator === 'active' || operator === 'exists' ? undefined : val,
         for: forDuration || undefined,
         within: withinWindow || undefined,
+      };
+    }
+
+    if (selectedSopId) {
+      const chosen = sops.find((s) => s.id === selectedSopId) || currentSelectedSop;
+      updatedNode.sop_binding = {
+        sop_id: chosen?.id || selectedSopId,
+        sop_name: chosen?.name || '标准应急处置程序',
+        action: chosen?.procedures?.[0]?.action || chosen?.name || '执行关联处置预案规程',
       };
     }
 
@@ -731,6 +757,54 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
             </div>
           )}
 
+          {/* Node-Level SOP Action & Phase Binding */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-900 block text-[11px] flex items-center space-x-1.5">
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                <span>节点联动处置 SOP 与 Phase 编排</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                从处置预案库中选择绑定动作
+              </span>
+            </div>
+
+            {/* SOP Selection from sops */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                选择联动处置 SOP 方案
+              </label>
+              <select
+                value={selectedSopId}
+                onChange={(e) => setSelectedSopId(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-900 font-medium text-xs focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">-- 无联动处置 SOP --</option>
+                {sops.map((sop) => (
+                  <option key={sop.id} value={sop.id}>
+                    [{sop.id}] {sop.name} ({sop.procedures?.length || 0} 步骤)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {currentSelectedSop && selectedSopId && (
+              <div className="p-2.5 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+                <span className="truncate max-w-[280px]">
+                  已选预案: <strong className="text-slate-900">{currentSelectedSop.name}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openSopEditor(currentSelectedSop.id)}
+                  className="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center space-x-1 shrink-0 cursor-pointer"
+                >
+                  <span>查看规程</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Parent gate migration if not top event */}
           {node.type !== 'top_event' && existingGates.length > 0 && (
             <div>
@@ -795,7 +869,7 @@ export const FtaEditNodeModal: React.FC<FtaEditNodeModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-xs"
+                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition shadow-xs"
               >
                 保存变更
               </button>

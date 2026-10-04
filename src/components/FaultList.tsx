@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { SeverityLevel, resolveSymptomSingleFeature } from '../types';
-import { GlobalNetworkGraph } from './GlobalNetworkGraph';
 import { FtaPanoramaView } from './FtaPanoramaView';
 import {
   AlertOctagon,
@@ -68,12 +67,12 @@ export const FaultList: React.FC = () => {
             <span>能源领域故障建模与图谱中心</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            沉淀能源领域专家故障机理、异常特征指标与全网传播图谱，支持单体建模与全局拓扑全景查看
+            沉淀能源领域专家故障机理、异常特征指标与全网 FTA 故障树标准全景，支持单体建模、因果推演与全系统级联演变森林
           </p>
         </div>
 
         <div className="flex items-center space-x-3 flex-wrap sm:flex-nowrap">
-          {/* Segmented View Switcher: List View vs. Global Network Graph View */}
+          {/* Segmented View Switcher: List View vs. FTA Fault Tree Panorama */}
           <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
             <button
               onClick={() => setFaultViewMode('list')}
@@ -85,17 +84,6 @@ export const FaultList: React.FC = () => {
             >
               <LayoutGrid className="w-4 h-4 text-slate-600" />
               <span>故障模式列表 ({faults.length})</span>
-            </button>
-            <button
-              onClick={() => setFaultViewMode('graph')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                faultViewMode === 'graph'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <GitFork className="w-4 h-4 text-slate-600" />
-              <span>传播网络图谱全景</span>
             </button>
             <button
               onClick={() => setFaultViewMode('fta')}
@@ -120,12 +108,9 @@ export const FaultList: React.FC = () => {
         </div>
       </div>
 
-      {/* Conditional View Mode */}
-      {faultViewMode === 'graph' ? (
-        /* Global Network Graph Mode (Embedded inside Fault Modeling) */
-        <GlobalNetworkGraph embedded={true} />
-      ) : faultViewMode === 'fta' ? (
-        /* FTA Fault Tree Panorama Mode (全系统多故障场景全景森林) */
+      {/* Conditional View Mode: FTA Panorama vs. Standard List */}
+      {faultViewMode === 'fta' ? (
+        /* FTA Fault Tree Panorama Mode (全系统多故障场景全景森林与因果推演) */
         <FtaPanoramaView onClose={() => setFaultViewMode('list')} />
       ) : (
         /* Standard Fault Cards & List Mode */

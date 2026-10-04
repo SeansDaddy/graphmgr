@@ -20,7 +20,6 @@ import { SopList } from './components/SopList';
 import { SopEditor } from './components/SopEditor';
 import { AlarmManager } from './components/AlarmManager';
 import { TestPlayground } from './components/TestPlayground';
-import { GlobalNetworkGraph } from './components/GlobalNetworkGraph';
 import { VersionManager } from './components/VersionManager';
 import { ImportModal } from './components/ImportModal';
 import { QuickSearchModal } from './components/QuickSearchModal';

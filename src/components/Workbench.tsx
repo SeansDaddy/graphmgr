@@ -272,7 +272,7 @@ export const Workbench: React.FC<{
               onClick={openFaultsGraphView}
               className="text-slate-900 hover:text-slate-700 font-semibold flex items-center space-x-1"
             >
-              <span>图谱全景</span>
+              <span>FTA 故障树全景</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

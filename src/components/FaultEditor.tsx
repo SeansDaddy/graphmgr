@@ -11,7 +11,6 @@ import {
   EventSequencePattern,
 } from '../types';
 import { Symptom5DInlineSelector, Symptom5DBadge } from './Symptom5DEditor';
-import { PropagationCanvas } from './PropagationCanvas';
 import { FtaTreeViewer } from './FtaTreeViewer';
 import { getFtaDocumentForFault, formatFtaDocumentToYaml } from '../data/ftaRepository';
 import {
@@ -105,7 +104,7 @@ export const FaultEditor: React.FC = () => {
     openParameterEditor,
   } = useApp();
 
-  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'symptoms' | 'propagation' | 'fta' | 'sop'>(
+  const [activeSubTab, setActiveSubTab] = useState<'basic' | 'symptoms' | 'fta' | 'sop'>(
     'basic'
   );
   const [showYamlPreview, setShowYamlPreview] = useState(false);
@@ -520,18 +519,6 @@ export const FaultEditor: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveSubTab('propagation')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-xs font-medium transition ${
-            activeSubTab === 'propagation'
-              ? 'bg-white text-slate-900 font-bold shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>3. 故障传播链画布 ({formData.propagation_chain?.length || 0} 环节)</span>
-        </button>
-
-        <button
           onClick={() => setActiveSubTab('fta')}
           className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-xs font-medium transition ${
             activeSubTab === 'fta'
@@ -539,8 +526,8 @@ export const FaultEditor: React.FC = () => {
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <GitFork className="w-3.5 h-3.5 text-rose-600 transform -rotate-45" />
-          <span>4. FTA 故障树 (FAT/FTA 标准规范)</span>
+          <GitFork className="w-3.5 h-3.5 text-slate-700 transform -rotate-45" />
+          <span>3. FTA 故障树 (FAT/FTA 标准规范)</span>
         </button>
 
         <button
@@ -552,7 +539,7 @@ export const FaultEditor: React.FC = () => {
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
-          <span>5. 关联处置 SOP ({formData.associated_procedure_ids?.length || 0})</span>
+          <span>4. 关联处置 SOP ({formData.associated_procedure_ids?.length || 0})</span>
         </button>
       </div>
 
@@ -1405,37 +1392,7 @@ export const FaultEditor: React.FC = () => {
           </div>
         )}
 
-        {/* Sub-Tab 3: Propagation Canvas */}
-        {activeSubTab === 'propagation' && (
-          <div className="space-y-3">
-            <div className="pb-1">
-              <h3 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
-                <Layers className="w-4 h-4 text-slate-700" />
-                <span>故障演变与传播链 (拓扑画布)</span>
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                建立明确的跨设备传导因果（A设备 a症状 ➔ B设备 b症状），定义传播时间窗口与传导机理
-              </p>
-            </div>
-
-            <PropagationCanvas
-              faultName={formData.name}
-              symptoms={formData.symptoms || []}
-              affectedDevices={formData.affected_devices || []}
-              propagationChain={formData.propagation_chain || []}
-              onUpdateChain={(newChain, newLayout) => {
-                setFormData({
-                  ...formData,
-                  propagation_chain: newChain,
-                  canvas_layout: newLayout,
-                });
-              }}
-              savedLayout={formData.canvas_layout}
-            />
-          </div>
-        )}
-
-        {/* Sub-Tab 4: FTA Fault Tree */}
+        {/* Sub-Tab 3: FTA Fault Tree */}
         {activeSubTab === 'fta' && (
           <div className="space-y-6">
             <FtaTreeViewer
@@ -1443,6 +1400,7 @@ export const FaultEditor: React.FC = () => {
               ftaDoc={formData.fta_document}
               showFaultSelector={false}
               isEditable={true}
+              hidePropagationGraph={true}
               onUpdateFtaDoc={(updatedDoc) => {
                 setFormData((prev) => ({ ...prev, fta_document: updatedDoc }));
                 saveFaultDraft(formData.id, { fta_document: updatedDoc });
@@ -1587,7 +1545,7 @@ export const FaultEditor: React.FC = () => {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  传播链定义 (fault_patterns.yaml)
+                  基础模式定义 (fault_patterns.yaml)
                 </button>
               </div>
 

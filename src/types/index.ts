@@ -319,7 +319,7 @@ export interface VersionSnapshot {
   };
 }
 
-export type FaultViewMode = 'list' | 'graph' | 'fta';
+export type FaultViewMode = 'list' | 'fta';
 
 // 4.9 Config Parameter Library Types (v1.1 Core Module)
 export type ParameterDataType = 'enum' | 'int' | 'float' | 'bool' | 'string';

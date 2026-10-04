@@ -619,7 +619,7 @@ export const FtaPanoramaView: React.FC<FtaPanoramaViewProps> = ({ onClose }) => 
                         {alarmCount} 告警事件
                       </span>
                       {configCount > 0 && (
-                        <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-100 font-mono">
+                        <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-mono">
                           {configCount} 定值比对
                         </span>
                       )}

@@ -68,6 +68,7 @@ interface FtaTreeViewerProps {
   showFaultSelector?: boolean;
   initialTab?: 'tree' | 'simulation' | 'tests' | 'yaml';
   isEditable?: boolean;
+  hidePropagationGraph?: boolean;
   onUpdateFtaDoc?: (updatedDoc: FaultTreeDocument) => void;
   onOpenSop?: (sopId: string) => void;
   onOpenTestInPlayground?: (testGiven: Record<string, any>) => void;
@@ -81,12 +82,21 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
   showFaultSelector = true,
   initialTab = 'tree',
   isEditable = false,
+  hidePropagationGraph = false,
   onUpdateFtaDoc,
   onOpenSop,
   onOpenTestInPlayground,
   onClose,
 }) => {
-  const { faults, selectedFaultId, setSelectedFaultId, showToast, updateFault } = useApp();
+  const {
+    faults,
+    selectedFaultId,
+    setSelectedFaultId,
+    showToast,
+    updateFault,
+    sops,
+    openSopEditor,
+  } = useApp();
 
   // Active fault ID resolution
   const [internalFaultId, setInternalFaultId] = useState<string>(() => {
@@ -122,6 +132,18 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
   useEffect(() => {
     setActiveFtaDoc(rawFtaDoc);
   }, [rawFtaDoc]);
+
+  // Match system SOP for this FTA document
+  const matchingSop = useMemo(() => {
+    return (
+      sops.find(
+        (s) =>
+          s.associated_fault_ids.includes(activeFtaDoc.metadata.id) ||
+          s.id.includes(activeFtaDoc.metadata.id) ||
+          (activeFtaDoc.metadata.name && s.name.includes(activeFtaDoc.metadata.name.slice(0, 4)))
+      ) || sops[0]
+    );
+  }, [sops, activeFtaDoc]);
 
   // Modals for editing FTA tree structure
   const [isAddSymptomModalOpen, setIsAddSymptomModalOpen] = useState(false);
@@ -361,7 +383,15 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
     }
   }, [initialTab]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [treeLayoutMode, setTreeLayoutMode] = useState<'split' | 'tree' | 'propagation'>('split');
+  const [treeLayoutMode, setTreeLayoutMode] = useState<'split' | 'tree' | 'propagation'>(
+    hidePropagationGraph ? 'tree' : 'split'
+  );
+
+  useEffect(() => {
+    if (hidePropagationGraph) {
+      setTreeLayoutMode('tree');
+    }
+  }, [hidePropagationGraph]);
 
   // Initialize simulation observations based on active FTA doc
   const [simObservations, setSimObservations] = useState<Record<string, any>>({});
@@ -437,32 +467,32 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
   const renderLogicTreeHierarchy = () => (
     <div className="space-y-6">
       {/* 1. SYMPTOM-DRIVEN MAPPING & TREE EDITING TOOLBAR */}
-      <div className="p-4.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-sm space-y-3 border border-indigo-950/50">
+      <div className="p-4.5 bg-white text-slate-800 rounded-2xl shadow-xs space-y-3 border border-slate-200">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <span className="p-2 rounded-xl bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 shrink-0">
-              <Sparkles className="w-4 h-4 text-indigo-300" />
+            <span className="p-2 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
+              <Sparkles className="w-4 h-4 text-slate-700" />
             </span>
             <div>
               <div className="flex items-center space-x-2 flex-wrap">
-                <h4 className="text-xs font-bold text-white tracking-wide">
+                <h4 className="text-xs font-bold text-slate-900 tracking-wide">
                   异常症状特征 ➔ FTA 故障树构建引擎
                 </h4>
                 {symptomStats.total > 0 && (
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono ${
                       symptomStats.mappedRatio === 100
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : symptomStats.mappedRatio > 50
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}
                   >
                     特征对齐率 {symptomStats.mapped}/{symptomStats.total} ({symptomStats.mappedRatio}%)
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-300 mt-0.5">
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 支持直接将已录入的 5D 时序测点、告警事件与配置定值映射为故障树判定底事件，或一键智能重构
               </p>
             </div>
@@ -471,10 +501,10 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleSynthesizeFromSymptoms}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
               title="根据当前录入的全部异常症状特征，自动按设备/机制合成标准 FTA 树"
             >
-              <Wand2 className="w-3.5 h-3.5 text-indigo-200" />
+              <Wand2 className="w-3.5 h-3.5 text-slate-300" />
               <span>智能根据特征重构树</span>
             </button>
 
@@ -483,10 +513,10 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                 setTargetParentGateId(existingGatesList[1]?.id || 'TOP');
                 setIsAddSymptomModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition border border-slate-700 cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold transition border border-slate-200 shadow-2xs cursor-pointer"
               title="选择异常症状特征添加为底事件"
             >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+              <Plus className="w-3.5 h-3.5 text-slate-600" />
               <span>挂载特征底事件</span>
             </button>
 
@@ -495,10 +525,10 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                 setTargetParentGateId('TOP');
                 setIsAddGateModalOpen(true);
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition border border-slate-700 cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold transition border border-slate-200 shadow-2xs cursor-pointer"
               title="新增中间逻辑门分支"
             >
-              <GitFork className="w-3.5 h-3.5 text-blue-400 transform -rotate-45" />
+              <GitFork className="w-3.5 h-3.5 text-slate-600 transform -rotate-45" />
               <span>新增逻辑门</span>
             </button>
 
@@ -515,9 +545,9 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
 
         {/* Unmapped Symptoms Quick Chips */}
         {symptomStats.unmapped.length > 0 && (
-          <div className="pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-[11px] text-slate-400 font-semibold flex items-center space-x-1">
-              <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+          <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[11px] text-slate-500 font-semibold flex items-center space-x-1">
+              <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
               <span>待映射特征 ({symptomStats.unmapped.length}):</span>
             </span>
             {symptomStats.unmapped.map((sym) => (
@@ -527,10 +557,10 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                   setTargetParentGateId(existingGatesList[1]?.id || 'TOP');
                   setIsAddSymptomModalOpen(true);
                 }}
-                className="px-2 py-0.5 rounded-lg bg-slate-800/90 hover:bg-indigo-900/60 text-slate-200 hover:text-white border border-slate-700 hover:border-indigo-500 text-[11px] flex items-center space-x-1 transition cursor-pointer"
+                className="px-2 py-0.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 text-[11px] flex items-center space-x-1 transition cursor-pointer"
                 title={`点击快速将此特征挂载入故障树: ${sym.metric_name || sym.alarm_name}`}
               >
-                <Plus className="w-3 h-3 text-indigo-400 shrink-0" />
+                <Plus className="w-3 h-3 text-slate-500 shrink-0" />
                 <span className="truncate max-w-[150px] font-medium">
                   {sym.device_name ? `[${sym.device_name}] ` : ''}
                   {sym.metric_name || sym.alarm_name || sym.parameter_name}
@@ -548,18 +578,24 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
           className={`p-4.5 rounded-2xl border-2 cursor-pointer transition-all max-w-lg w-full text-center relative group ${
             selectedNodeId === topNode.id
               ? 'border-slate-900 bg-slate-900 text-white shadow-md'
-              : 'border-rose-300 bg-rose-50/70 hover:border-rose-500 text-slate-900'
+              : 'border-slate-300 bg-white hover:border-slate-900 text-slate-900 shadow-xs'
           }`}
         >
           <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
-            <span className="font-bold opacity-80 uppercase tracking-wide">TOP EVENT [顶事件]</span>
+            <span className={`font-bold uppercase tracking-wide ${selectedNodeId === topNode.id ? 'text-slate-300' : 'text-slate-500'}`}>
+              TOP EVENT [顶事件]
+            </span>
             <div className="flex items-center space-x-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleGateType(topNode.id);
                 }}
-                className="px-2.5 py-0.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] transition cursor-pointer shadow-2xs"
+                className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] transition cursor-pointer shadow-2xs ${
+                  selectedNodeId === topNode.id
+                    ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600'
+                    : 'bg-slate-900 hover:bg-slate-800 text-white'
+                }`}
                 title="点击切换顶事件逻辑门体系 (AND ⋀ / OR ⋁)"
               >
                 {topNode.gate || 'OR'} 门 {topNode.gate === 'AND' ? '⋀' : '⋁'}
@@ -567,20 +603,26 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
             </div>
           </div>
           <h3 className="font-black text-base tracking-tight">{topNode.name}</h3>
-          <div className="text-xs opacity-75 mt-0.5 font-mono">{topNode.id}</div>
+          <div className={`text-xs mt-0.5 font-mono ${selectedNodeId === topNode.id ? 'text-slate-400' : 'text-slate-500'}`}>{topNode.id}</div>
 
           {/* Quick Node Actions Bar */}
-          <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-center space-x-2 text-[11px]">
+          <div className={`mt-3 pt-2.5 border-t flex items-center justify-center space-x-2 text-[11px] ${
+            selectedNodeId === topNode.id ? 'border-slate-800' : 'border-slate-100'
+          }`}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setTargetParentGateId(topNode.id);
                 setIsAddSymptomModalOpen(true);
               }}
-              className="px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-slate-800 border border-slate-300 font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer"
+              className={`px-2.5 py-1 rounded-lg font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer ${
+                selectedNodeId === topNode.id
+                  ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200'
+              }`}
               title="在顶事件下直接挂载异常症状底事件"
             >
-              <Plus className="w-3 h-3 text-emerald-600" />
+              <Plus className="w-3 h-3 text-emerald-500" />
               <span>挂载特征</span>
             </button>
 
@@ -590,10 +632,14 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                 setTargetParentGateId(topNode.id);
                 setIsAddGateModalOpen(true);
               }}
-              className="px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-slate-800 border border-slate-300 font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer"
+              className={`px-2.5 py-1 rounded-lg font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer ${
+                selectedNodeId === topNode.id
+                  ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200'
+              }`}
               title="在顶事件下添加逻辑门分支"
             >
-              <GitFork className="w-3 h-3 text-blue-600 transform -rotate-45" />
+              <GitFork className="w-3 h-3 text-indigo-500 transform -rotate-45" />
               <span>添加逻辑门</span>
             </button>
 
@@ -603,10 +649,14 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                 setNodeToEdit(topNode);
                 setIsEditNodeModalOpen(true);
               }}
-              className="px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-slate-800 border border-slate-300 font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer"
+              className={`px-2.5 py-1 rounded-lg font-semibold flex items-center space-x-1 shadow-2xs transition cursor-pointer ${
+                selectedNodeId === topNode.id
+                  ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200'
+              }`}
               title="编辑顶事件名称与输出结论"
             >
-              <Edit3 className="w-3 h-3 text-slate-600" />
+              <Edit3 className="w-3 h-3 text-slate-500" />
               <span>编辑</span>
             </button>
           </div>
@@ -632,8 +682,8 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
               key={cause.id}
               className={`p-5 rounded-2xl border-2 transition-all space-y-4 ${
                 isSelected
-                  ? 'border-blue-600 bg-blue-50/40 shadow-sm'
-                  : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+                  ? 'border-slate-900 bg-white shadow-sm ring-1 ring-slate-900/10'
+                  : 'border-slate-200 bg-slate-50/60 hover:border-slate-300'
               }`}
             >
               {/* Cause Header */}
@@ -648,7 +698,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                         e.stopPropagation();
                         handleToggleGateType(cause.id);
                       }}
-                      className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 transition cursor-pointer"
+                      className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition cursor-pointer"
                       title="点击快速切换 AND ⋀ / OR ⋁"
                     >
                       {cause.gate || 'AND'} 门 {cause.gate === 'OR' ? '⋁' : '⋀'}
@@ -663,7 +713,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                       className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                         isTriggered
                           ? 'bg-rose-600 text-white animate-pulse'
-                          : 'bg-slate-200 text-slate-600'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}
                     >
                       {isTriggered ? '● 门逻辑命中' : '○ 未触发'}
@@ -723,7 +773,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                         setTargetParentGateId(cause.id);
                         setIsAddGateModalOpen(true);
                       }}
-                      className="text-[10px] px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold flex items-center space-x-0.5 transition cursor-pointer"
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 flex items-center space-x-0.5 transition cursor-pointer"
                       title="在此门下新增子逻辑门"
                     >
                       <GitFork className="w-3 h-3 transform -rotate-45" />
@@ -750,10 +800,10 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                           onClick={() => setSelectedNodeId(child.id)}
                           className={`p-2.5 rounded-xl border text-xs cursor-pointer transition flex items-center justify-between ${
                             isChildSelected
-                              ? 'border-slate-800 bg-slate-900 text-white'
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
                               : isChildTriggered
-                              ? 'border-amber-300 bg-amber-50/80 text-amber-950 font-medium'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                              ? 'border-amber-200 bg-amber-50/70 text-slate-900 font-medium'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/50'
                           }`}
                         >
                           <div className="truncate mr-2 flex-1">
@@ -784,8 +834,8 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                                 isChildSelected
                                   ? 'bg-slate-800 text-slate-200'
                                   : isChildTriggered
-                                  ? 'bg-amber-200 text-amber-900'
-                                  : 'bg-slate-100 text-slate-500'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
                               }`}
                             >
                               {isChildTriggered ? 'TRUE' : 'FALSE'}
@@ -863,14 +913,14 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
             <div>
               <span className="text-slate-400 text-[11px] block">逻辑门类型 (Gate):</span>
               <div className="flex items-center space-x-2 mt-1">
-                <span className="font-mono font-bold text-blue-700">
+                <span className="font-mono font-bold text-slate-800">
                   {selectedNode.gate === 'AND'
                     ? '⋀ AND 门 (全子事件同时满足)'
                     : '⋁ OR 门 (任一子事件满足)'}
                 </span>
                 <button
                   onClick={() => handleToggleGateType(selectedNode.id)}
-                  className="text-[10px] px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold border border-blue-200 transition cursor-pointer"
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 transition cursor-pointer"
                   title="一键切换 AND / OR"
                 >
                   切换门
@@ -908,15 +958,71 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
 
           {/* Output conclusion if top event */}
           {selectedNode.output && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1.5 text-rose-950">
-              <span className="font-bold text-[11px] block">触发结论 (Output Conclusion):</span>
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-slate-900">
+              <span className="font-bold text-[11px] block text-slate-700">触发结论 (Output Conclusion):</span>
               <p className="font-bold">{selectedNode.output.conclusion}</p>
-              <div className="text-[10px] font-mono text-rose-700">
+              <div className="text-[10px] font-mono text-slate-500">
                 严重度: {selectedNode.output.severity} • 置信度阈值:{' '}
                 {selectedNode.output.confidence?.threshold}
               </div>
             </div>
           )}
+
+          {/* Node-Level & Condition-Level SOP & Phase Orchestration */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[11px] text-slate-800 flex items-center space-x-1.5">
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                <span>节点联动处置 SOP (Phase 编排)</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
+                {selectedNode.type === 'top_event'
+                  ? 'Phase 3: 紧急跳闸'
+                  : selectedNode.type === 'intermediate'
+                  ? 'Phase 2: 降额阻断'
+                  : 'Phase 1: 测点排查'}
+              </span>
+            </div>
+
+            <div className="text-xs">
+              <p className="text-slate-800 font-medium leading-relaxed">
+                {selectedNode.sop_binding?.action ||
+                  (selectedNode.type === 'top_event'
+                    ? '顶事件确诊生效：毫秒级切断高压直流主接触器与断路器，脱开母线并联锁停机'
+                    : selectedNode.type === 'intermediate'
+                    ? '逻辑门传导汇聚：强制功率降额 50%，联锁投入备用辅机系统，阻断级联扩散'
+                    : '观测判据触发：调取遥测数据开展交叉比对，复核传感器零漂与采样线绝缘')}
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] flex-wrap gap-2">
+              <span className="text-slate-500 truncate max-w-[240px]">
+                关联方案: <strong className="text-slate-700">{selectedNode.sop_binding?.sop_name || matchingSop?.name || '标准应急处置程序'}</strong> ({selectedNode.sop_binding?.sop_id || matchingSop?.id || 'RP-01'})
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setNodeToEdit(selectedNode);
+                    setIsEditNodeModalOpen(true);
+                  }}
+                  className="text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer"
+                >
+                  从处置SOP配置
+                </button>
+                <button
+                  onClick={() => {
+                    const targetSopId = selectedNode.sop_binding?.sop_id || matchingSop?.id || `RP-${activeFtaDoc.metadata.id}`;
+                    if (onOpenSop) onOpenSop(targetSopId);
+                    else if (openSopEditor) openSopEditor(targetSopId);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center space-x-1 transition cursor-pointer shrink-0"
+                >
+                  <span>查看规程</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <span className="text-slate-500">当前真值状态:</span>
@@ -1099,64 +1205,66 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
           {/* Tree & Propagation Controls Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="font-bold text-slate-800 flex items-center space-x-1">
-                <span>视图布局:</span>
+              <span className="font-bold text-slate-800 flex items-center space-x-1.5">
+                <GitFork className="w-3.5 h-3.5 text-slate-700 transform -rotate-45" />
+                <span>FTA 逻辑门树演绎视图</span>
               </span>
 
-              {/* Mode Toggle */}
-              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
-                <button
-                  onClick={() => setTreeLayoutMode('split')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
-                    treeLayoutMode === 'split'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="左侧逻辑门树 ⟷ 右侧故障传播图并排对照"
-                >
-                  <Network className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>双图并排对照 (逻辑门树 ⟷ 故障传播图)</span>
-                </button>
+              {!hidePropagationGraph && (
+                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    onClick={() => setTreeLayoutMode('split')}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                      treeLayoutMode === 'split'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="左侧逻辑门树 ⟷ 右侧故障传播图并排对照"
+                  >
+                    <Network className="w-3.5 h-3.5 text-slate-700" />
+                    <span>双图并排对照 (逻辑门树 ⟷ 故障传播图)</span>
+                  </button>
 
-                <button
-                  onClick={() => setTreeLayoutMode('tree')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
-                    treeLayoutMode === 'tree'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="仅查看 FTA 逻辑门树"
-                >
-                  <GitFork className="w-3.5 h-3.5 text-blue-600 transform -rotate-45" />
-                  <span>仅逻辑门树</span>
-                </button>
+                  <button
+                    onClick={() => setTreeLayoutMode('tree')}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                      treeLayoutMode === 'tree'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="仅查看 FTA 逻辑门树"
+                  >
+                    <GitFork className="w-3.5 h-3.5 text-slate-700 transform -rotate-45" />
+                    <span>仅逻辑门树</span>
+                  </button>
 
-                <button
-                  onClick={() => setTreeLayoutMode('propagation')}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
-                    treeLayoutMode === 'propagation'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="仅查看故障传播图"
-                >
-                  <Activity className="w-3.5 h-3.5 text-amber-600" />
-                  <span>仅故障传播图</span>
-                </button>
-              </div>
+                  <button
+                    onClick={() => setTreeLayoutMode('propagation')}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold transition text-xs ${
+                      treeLayoutMode === 'propagation'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="仅查看故障传播图"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-slate-700" />
+                    <span>仅故障传播图</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Logic Gates Legend */}
             <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold">
                 <span>⋀ AND 门</span>
                 <span className="text-[10px] font-normal font-sans">(全满足)</span>
               </span>
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-mono font-bold">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 font-mono font-bold">
                 <span>⋁ OR 门</span>
                 <span className="text-[10px] font-normal font-sans">(任一触发)</span>
               </span>
-              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-bold">
                 <span>基本事件</span>
               </span>
             </div>
@@ -1193,6 +1301,9 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                     selectedNodeId={selectedNodeId}
                     onSelectNode={setSelectedNodeId}
                     compact={true}
+                    onUpdateFtaDoc={(updatedDoc) =>
+                      commitUpdatedDoc(updatedDoc, '已成功更新节点级 SOP 处置绑定与 Phase 编排')
+                    }
                   />
                 </div>
               </div>
@@ -1223,6 +1334,9 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                 selectedNodeId={selectedNodeId}
                 onSelectNode={setSelectedNodeId}
                 compact={false}
+                onUpdateFtaDoc={(updatedDoc) =>
+                  commitUpdatedDoc(updatedDoc, '已成功更新节点级 SOP 处置绑定与 Phase 编排')
+                }
               />
               {renderNodeInspectorCard()}
             </div>
@@ -1551,7 +1665,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-3">
               <h4 className="text-xs font-bold text-slate-900 flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="flex items-center space-x-1.5">
-                  <Layers className="w-4 h-4 text-purple-600" />
+                  <Layers className="w-4 h-4 text-slate-700" />
                   <span>最小割集 (Minimal Cut Sets - MCS)</span>
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">
@@ -1570,7 +1684,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                       key={idx}
                       className={`p-3 rounded-xl border text-xs flex items-center justify-between transition ${
                         isCutSetHit
-                          ? 'border-purple-300 bg-purple-50 text-purple-950 font-medium'
+                          ? 'border-indigo-200 bg-indigo-50/70 text-indigo-950 font-medium'
                           : 'border-slate-100 bg-slate-50 text-slate-500'
                       }`}
                     >
@@ -1583,7 +1697,7 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                         </span>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                        isCutSetHit ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                        isCutSetHit ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'
                       }`}>
                         {isCutSetHit ? '割集激活' : '未满足'}
                       </span>
@@ -1645,9 +1759,9 @@ export const FtaTreeViewer: React.FC<FtaTreeViewerProps> = ({
                   </span>
                 </div>
 
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs">
-                  <span className="text-blue-700 block font-medium">回归通过率</span>
-                  <span className="text-2xl font-bold font-mono text-blue-700 mt-1 block">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <span className="text-slate-500 block font-medium">回归通过率</span>
+                  <span className="text-2xl font-bold font-mono text-slate-900 mt-1 block">
                     {testSuiteResult.passRate}%
                   </span>
                 </div>

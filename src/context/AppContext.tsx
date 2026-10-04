@@ -1164,7 +1164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const openFaultsGraphView = () => {
-    setFaultViewMode('graph');
+    setFaultViewMode('fta');
     setActiveTab('faults');
   };
 

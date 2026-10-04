@@ -118,6 +118,18 @@ export interface FtaSharedEvent {
   } & FtaConditionClause;
 }
 
+export interface FtaSopBinding {
+  sop_id?: string;
+  sop_name?: string;
+  step_id?: string;
+  step_num?: number;
+  action?: string;
+  phase?: 'phase1_trigger' | 'phase2_gate' | 'phase3_top' | 'phase4_mitigation';
+  phase_name?: string;
+  expected_outcome?: string;
+  priority?: 'critical' | 'high' | 'medium' | 'low';
+}
+
 export interface FtaTreeNode {
   id: string;
   type: FtaNodeType;
@@ -129,6 +141,7 @@ export interface FtaTreeNode {
     all?: FtaConditionClause[];
     any?: FtaConditionClause[];
   } & FtaConditionClause;
+  sop_binding?: FtaSopBinding;
   output?: {
     conclusion: string;
     severity: SeverityLevel;
